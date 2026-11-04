@@ -330,11 +330,45 @@ app.post('/api/providers/test', async (req, res) => {
   res.json({ result });
 });
 
-// v12: Live product runtime — serves the company's generated landing page + pricing
+// v12 + v13: Live product runtime — serves the company's generated landing page + interactive Stripe checkout dock
 app.get('/live-product', (req, res) => {
   const html = (engine.state.workspaceFiles || []).find((f) => f.filename.endsWith('_landing.html'));
   res.setHeader('Content-Type', 'text/html; charset=utf-8');
-  res.send(html?.content || `<!DOCTYPE html><html><body style="background:#090d16;color:#e2e8f0;font-family:sans-serif;text-align:center;padding:60px"><h1>${engine.state.company.name}</h1><p>No landing page generated yet — run a Marketing pipeline step.</p></body></html>`);
+  const rawHtml =
+    html?.content ||
+    `<!DOCTYPE html><html><body style="background:#090d16;color:#e2e8f0;font-family:sans-serif;text-align:center;padding:60px"><h1>${engine.state.company.name}</h1><p>No landing page generated yet — run a Marketing pipeline step.</p></body></html>`;
+
+  const interactiveWidget = `
+  <!-- AI Company OS Live Product Runtime Telemetry & Interactive Stripe Checkout Bar -->
+  <div id="aiOsLiveRuntimeBar" style="position:fixed;bottom:12px;right:12px;left:12px;background:rgba(6,10,20,0.94);border:1px solid rgba(56,189,248,0.45);border-radius:10px;padding:8px 14px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;font-family:Inter,system-ui,sans-serif;font-size:12px;color:#f8fafc;z-index:9999;box-shadow:0 8px 28px rgba(0,0,0,0.65);backdrop-filter:blur(10px);">
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+      <span style="color:#10b981;font-weight:800;">● LIVE RUNTIME</span>
+      <span id="lpMrrBadge" style="background:rgba(16,185,129,0.15);color:#34d399;padding:2px 8px;border-radius:999px;font-weight:700;">MRR: $${(engine.state.company.mrr || 0).toLocaleString()}/mo</span>
+      <span id="lpCustBadge" style="background:rgba(56,189,248,0.15);color:#38bdf8;padding:2px 8px;border-radius:999px;font-weight:700;">Customers: ${engine.state.company.customersCount || 0}</span>
+      <span style="color:#94a3b8;font-size:11px;">Source: ${html?.filename || 'default_funnel.html'}</span>
+    </div>
+    <div style="display:flex;gap:8px;">
+      <button onclick="window.triggerLiveCheckout()" style="background:linear-gradient(135deg,#10b981,#059669);color:#fff;border:none;border-radius:6px;padding:5px 12px;font-weight:700;font-size:11.5px;cursor:pointer;">💳 Test Live Customer Checkout (+MRR)</button>
+      <a href="/live-product/api/health" target="_blank" style="background:rgba(30,41,59,0.9);color:#cbd5e1;text-decoration:none;border:1px solid #334155;border-radius:6px;padding:5px 10px;font-size:11px;">🩺 Health JSON</a>
+    </div>
+  </div>
+  <script>
+    window.triggerLiveCheckout = async function() {
+      try {
+        const r = await fetch('/api/product/simulate-traffic', { method: 'POST' });
+        const d = await r.json();
+        if (d && d.state && d.state.company) {
+          document.getElementById('lpMrrBadge').textContent = 'MRR: $' + (d.state.company.mrr || 0).toLocaleString() + '/mo';
+          document.getElementById('lpCustBadge').textContent = 'Customers: ' + (d.state.company.customersCount || 0);
+        }
+      } catch (e) {}
+    };
+  </script>`;
+
+  const injected = rawHtml.includes('</body>')
+    ? rawHtml.replace('</body>', `${interactiveWidget}\n</body>`)
+    : `${rawHtml}\n${interactiveWidget}`;
+  res.send(injected);
 });
 
 app.get('/live-product/api/health', (req, res) => {

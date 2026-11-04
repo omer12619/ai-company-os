@@ -6,3 +6,6 @@ yarn-debug.log*
 yarn-error.log*
 data/*.json
 !data/.gitkeep
+workspace/sprint_*
+workspace/eval_fault_probe*
+workspace/broken_syntax*

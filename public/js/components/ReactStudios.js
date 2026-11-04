@@ -466,9 +466,22 @@ function WorkspaceExplorerComponent({ files, wiki }) {
   const [editBuffer, setEditBuffer] = React.useState('');
   const [runResult, setRunResult] = React.useState(null);
   const [isRunningCode, setIsRunningCode] = React.useState(false);
+  const [fileQuery, setFileQuery] = React.useState('');
+  const [fileTypeFilter, setFileTypeFilter] = React.useState('all'); // 'all' | 'js' | 'html' | 'data' | 'md'
   const previewContainerRef = React.useRef(null);
 
-  const activeFile = allItems.find((x) => x.id === selectedId) || allItems[0];
+  const filteredItems = allItems.filter((item) => {
+    const fn = (item.filename || '').toLowerCase();
+    const matchesQ = !fileQuery || fn.includes(fileQuery.toLowerCase()) || (item.department || '').toLowerCase().includes(fileQuery.toLowerCase());
+    if (!matchesQ) return false;
+    if (fileTypeFilter === 'js') return fn.endsWith('.js');
+    if (fileTypeFilter === 'html') return fn.endsWith('.html');
+    if (fileTypeFilter === 'data') return fn.endsWith('.sql') || fn.endsWith('.json');
+    if (fileTypeFilter === 'md') return fn.endsWith('.md');
+    return true;
+  });
+
+  const activeFile = allItems.find((x) => x.id === selectedId) || filteredItems[0] || allItems[0];
   const isHtml = activeFile?.filename?.endsWith('.html');
   const isJs = activeFile?.filename?.endsWith('.js');
   const isJson = activeFile?.filename?.endsWith('.json');
@@ -615,7 +628,33 @@ function WorkspaceExplorerComponent({ files, wiki }) {
     ),
     h('div', { className: 'workspace-ide-grid' },
       h('div', { className: 'workspace-file-list' },
-        allItems.map((item) => {
+        h('div', { style: { padding: '6px 6px 8px', borderBottom: '1px solid var(--border)', marginBottom: '6px' } },
+          h('input', {
+            type: 'text',
+            className: 'form-input',
+            style: { fontSize: '0.73rem', padding: '5px 8px', marginBottom: '6px' },
+            placeholder: `🔍 Search ${allItems.length} artifacts...`,
+            value: fileQuery,
+            onChange: (e) => setFileQuery(e.target.value)
+          }),
+          h('div', { style: { display: 'flex', gap: '4px', flexWrap: 'wrap' } },
+            [
+              { id: 'all', label: 'All' },
+              { id: 'js', label: '⚡ JS' },
+              { id: 'html', label: '🌐 HTML' },
+              { id: 'data', label: '🗄️ SQL/JSON' },
+              { id: 'md', label: '📄 Docs' }
+            ].map((ft) =>
+              h('button', {
+                key: ft.id,
+                className: `btn btn-sm ${fileTypeFilter === ft.id ? 'btn-primary' : 'btn-outline'}`,
+                style: { fontSize: '0.64rem', padding: '2px 6px' },
+                onClick: () => setFileTypeFilter(ft.id)
+              }, ft.label)
+            )
+          )
+        ),
+        filteredItems.map((item) => {
           const icon = item.filename.endsWith('.js') ? '⚡' : item.filename.endsWith('.html') ? '🌐' : item.filename.endsWith('.json') ? '📊' : '📄';
           return h('div', {
             key: item.id,
@@ -712,10 +751,14 @@ function CFOAnalyticsComponent({ state }) {
   return h('div', { className: 'wiki-card' },
     h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', flexWrap: 'wrap', gap: '8px' } },
       h('h3', null, '📊 Paperclip Per-Agent Budget Caps & Live MRR Revenue Engine (React Component)'),
-      h('div', { style: { display: 'flex', gap: '10px', alignItems: 'center', fontSize: '0.8rem', fontWeight: 700 } },
+      h('div', { style: { display: 'flex', gap: '10px', alignItems: 'center', fontSize: '0.8rem', fontWeight: 700, flexWrap: 'wrap' } },
         h('span', { style: { color: '#10b981' } }, `💰 MRR: $${(company.mrr || 0).toLocaleString()}/mo`),
         h('span', { style: { color: '#38bdf8' } }, `👥 Paying Customers: ${company.customersCount || 0}`),
-        h('span', { style: { color: '#f59e0b' } }, `♻️ Treasury Reinvested: +$${(company.revenueEarned || 0).toFixed(2)}`)
+        h('span', { style: { color: '#f59e0b' } }, `♻️ Treasury Reinvested: +$${(company.revenueEarned || 0).toFixed(2)}`),
+        h('button', {
+          className: 'btn btn-sm btn-primary',
+          onClick: () => window.openMarketRadarModal && window.openMarketRadarModal()
+        }, '📊 2D Market Radar & Runway')
       )
     ),
     h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '10px' } },
@@ -779,7 +822,11 @@ function GitHubEcosystemComponent({ repos, state }) {
         )
       ),
       h('div', { style: { display: 'flex', gap: '8px', flexWrap: 'wrap' } },
-        h('button', { className: 'btn btn-primary', onClick: exportCompanyPack }, '📦 Export Company Pack (.json)'),
+        h('button', {
+          className: 'btn btn-primary btn-glow',
+          onClick: () => window.openGitHubSyncModal && window.openGitHubSyncModal()
+        }, '🐙 OpenHands Live GitHub Auto-Push'),
+        h('button', { className: 'btn btn-secondary', onClick: exportCompanyPack }, '📦 Export Company Pack (.json)'),
         h('label', { className: 'btn btn-secondary', style: { cursor: 'pointer' } },
           '📥 Import Company Pack',
           h('input', { type: 'file', accept: '.json', style: { display: 'none' }, onChange: handleImportFile })
