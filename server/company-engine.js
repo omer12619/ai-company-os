@@ -70,13 +70,40 @@ class CompanyEngine {
 
   clampRingBuffers(state = this.state) {
     if (!state) return;
-    if (Array.isArray(state.events) && state.events.length > 80) state.events.length = 80;
-    if (Array.isArray(state.consoleMessages) && state.consoleMessages.length > 80) state.consoleMessages.length = 80;
-    if (Array.isArray(state.ledger) && state.ledger.length > 100) state.ledger.length = 100;
-    if (Array.isArray(state.toolExecutions) && state.toolExecutions.length > 50) state.toolExecutions.length = 50;
-    if (Array.isArray(state.otelSpans) && state.otelSpans.length > 80) state.otelSpans.length = 80;
-    if (Array.isArray(state.owaspAuditLog) && state.owaspAuditLog.length > 60) state.owaspAuditLog.length = 60;
-    if (Array.isArray(state.checkpoints) && state.checkpoints.length > 12) state.checkpoints.length = 12;
+    if (Array.isArray(state.events) && state.events.length > 45) state.events.length = 45;
+    if (Array.isArray(state.consoleMessages) && state.consoleMessages.length > 45) state.consoleMessages.length = 45;
+    if (Array.isArray(state.ledger) && state.ledger.length > 60) state.ledger.length = 60;
+    if (Array.isArray(state.toolExecutions) && state.toolExecutions.length > 35) state.toolExecutions.length = 35;
+    if (Array.isArray(state.otelSpans) && state.otelSpans.length > 45) state.otelSpans.length = 45;
+    if (Array.isArray(state.owaspAuditLog) && state.owaspAuditLog.length > 40) state.owaspAuditLog.length = 40;
+    if (Array.isArray(state.checkpoints) && state.checkpoints.length > 10) state.checkpoints.length = 10;
+    if (Array.isArray(state.tasks) && state.tasks.length > 16) state.tasks.length = 16;
+    if (Array.isArray(state.memoryWiki)) {
+      if (state.memoryWiki.length > 15) state.memoryWiki.length = 15;
+      state.memoryWiki.forEach((w) => {
+        if (typeof w.content === 'string' && w.content.length > 1800) {
+          w.content = w.content.slice(0, 1800) + '\n\n*(Truncated in memory cache — full artifact stored in /workspace)*';
+        }
+      });
+    }
+    if (Array.isArray(state.workspaceFiles)) {
+      state.workspaceFiles = state.workspaceFiles.filter(
+        (f) => f.filename !== 'broken_syntax_service.js' && f.filename !== 'eval_fault_probe_service.js'
+      );
+      if (state.workspaceFiles.length > 32) {
+        const pinnedNames = new Set([
+          'COMPANY_CHARTER.md',
+          'MASTER_ROADMAP.md',
+          'OPENAPI_SPEC.json',
+          'EVAL_BENCHMARK_REPORT.md',
+          'SECURITY_AUDIT_REPORT.md',
+          'DSPY_PROMPT_SIGNATURE.md'
+        ]);
+        const pinned = state.workspaceFiles.filter((f) => pinnedNames.has(f.filename));
+        const recent = state.workspaceFiles.filter((f) => !pinnedNames.has(f.filename)).slice(0, 32 - pinned.length);
+        state.workspaceFiles = [...recent, ...pinned];
+      }
+    }
   }
 
   loadState() {
@@ -142,6 +169,28 @@ class CompanyEngine {
           a.handoffsSent = a.handoffsSent || 0;
           a.handoffsReceived = a.handoffsReceived || 0;
         });
+        (parsed.competitors || []).forEach((c) => {
+          const unifiedShare = Number(c.marketSharePct ?? c.marketShare ?? 20);
+          c.marketSharePct = unifiedShare;
+          c.marketShare = unifiedShare;
+        });
+        this.clampRingBuffers(parsed);
+        parsed.checkpoints = Array.isArray(parsed.checkpoints) ? parsed.checkpoints : [];
+        if (parsed.checkpoints.length === 0) {
+          parsed.checkpoints.push({
+            id: `cp-boot-${Date.now()}`,
+            label: `Baseline Snapshot (Cycle #${parsed.company?.cycleCount || 0})`,
+            createdAt: new Date().toISOString(),
+            cycleCount: parsed.company?.cycleCount || 0,
+            mrr: parsed.company?.mrr || 0,
+            agentsCount: (parsed.agents || []).length,
+            snapshot: {
+              company: JSON.parse(JSON.stringify(parsed.company)),
+              agents: JSON.parse(JSON.stringify(parsed.agents || [])),
+              tasks: JSON.parse(JSON.stringify((parsed.tasks || []).slice(0, 8)))
+            }
+          });
+        }
         return parsed;
       }
     } catch (e) {
@@ -2881,8 +2930,11 @@ metric_gain: "+${variantBetaScore - variantAlphaScore}% QA & Schema Fidelity"
 
     if (Array.isArray(this.state.competitors)) {
       this.state.competitors.forEach((comp) => {
-        comp.marketShare = Math.max(5, Number(((comp.marketShare || 22) - chosen.shareGain / 3).toFixed(1)));
-        comp.threatLevel = comp.marketShare < 16 ? 'LOW' : 'MEDIUM';
+        const baseShare = Number(comp.marketSharePct ?? comp.marketShare ?? 22);
+        const nextShare = Math.max(4.5, Number((baseShare - chosen.shareGain / 3).toFixed(1)));
+        comp.marketSharePct = nextShare;
+        comp.marketShare = nextShare;
+        comp.threatLevel = nextShare < 16 ? 'LOW' : 'MEDIUM';
       });
     }
 

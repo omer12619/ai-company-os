@@ -766,13 +766,16 @@ function renderMarketRadarAndFinOpsSvg() {
   // Build 2D Competitor Bubble Radar SVG
   const radarBubbles = [
     { name: `${appState.company?.name || 'Our AI Co'} (US)`, share: ourShare, velocity: 92, color: '#10b981', r: Math.max(16, Math.min(34, ourShare * 0.9)) },
-    ...competitors.map((c, i) => ({
-      name: c.name,
-      share: Number(c.marketShare || 18),
-      velocity: 62 + i * 9,
-      color: i === 0 ? '#ef4444' : i === 1 ? '#f59e0b' : '#38bdf8',
-      r: Math.max(13, Math.min(28, Number(c.marketShare || 18) * 0.8))
-    }))
+    ...competitors.map((c, i) => {
+      const cShare = Number(c.marketSharePct ?? c.marketShare ?? 18);
+      return {
+        name: c.name,
+        share: cShare,
+        velocity: 62 + i * 9,
+        color: i === 0 ? '#ef4444' : i === 1 ? '#f59e0b' : '#38bdf8',
+        r: Math.max(13, Math.min(28, cShare * 0.8))
+      };
+    })
   ];
 
   const radarSvg = `

@@ -15,10 +15,29 @@ const {
 
 const app = express();
 const PORT = process.env.PORT || 3456;
+const zlib = require('zlib');
 const engine = new CompanyEngine();
 
 app.use(cors());
 app.use(express.json({ limit: '5mb' }));
+
+// Built-in Zero-Dependency Gzip Compression for JSON API payloads (>1.5KB)
+app.use((req, res, next) => {
+  if (req.path === '/api/stream') return next();
+  const acceptEncoding = req.headers['accept-encoding'] || '';
+  if (!acceptEncoding.includes('gzip')) return next();
+  const origJson = res.json.bind(res);
+  res.json = (body) => {
+    const raw = JSON.stringify(body);
+    if (raw.length < 1500) return origJson(body);
+    res.setHeader('Content-Type', 'application/json; charset=utf-8');
+    res.setHeader('Content-Encoding', 'gzip');
+    res.setHeader('Vary', 'Accept-Encoding');
+    return res.send(zlib.gzipSync(Buffer.from(raw, 'utf8')));
+  };
+  next();
+});
+
 app.use(express.static(path.join(__dirname, '..', 'public')));
 
 app.get('/api/state', (req, res) => {

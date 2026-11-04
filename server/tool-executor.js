@@ -1663,6 +1663,11 @@ function runSweAndGaiaBenchmark({ company, agents = [] }) {
     companyGoal: company?.goal || 'SWE-Bench Evaluation',
     agentName: 'SWE-Bench Auto-Healer'
   });
+  try {
+    if (fs.existsSync(faultFile)) fs.unlinkSync(faultFile);
+    const brokenFile = path.join(WORKSPACE_DIR, 'broken_syntax_service.js');
+    if (fs.existsSync(brokenFile)) fs.unlinkSync(brokenFile);
+  } catch {}
   const t2Pass = healRes.ok && healRes.healedCount >= 1;
   trials.push({
     id: 'SWE-BENCH-02',
