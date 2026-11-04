@@ -1,0 +1,40 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Build and scale a profitable product with autono — Autonomous API",
+    "version": "1.0.0",
+    "description": "Auto-synthesized OpenAPI specification for sprint_6_automated_scaling_service.js"
+  },
+  "paths": {
+    "/api/health": {
+      "get": {
+        "summary": "Health & MRR Telemetry Probe",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/pricing": {
+      "get": {
+        "summary": "CFO Unit Economics & Pricing Tiers",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/v1/sprint_6_automated_scaling": {
+      "post": {
+        "summary": "Sprint 6: Automated Scaling & Reliability Pipeline",
+        "responses": {
+          "200": {
+            "description": "Executed"
+          }
+        }
+      }
+    }
+  }
+}

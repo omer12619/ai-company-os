@@ -1,0 +1,37 @@
+{
+  "query": "Build scale profitable",
+  "source": "HackerNews Algolia Live API",
+  "collectedBy": "Soraia Lindqvist (Ex-HyperScale GTM)",
+  "collectedAt": "2026-11-01T09:25:07.189Z",
+  "signalsCount": 4,
+  "liveSignals": [
+    {
+      "title": "Audio / Podcasting startup seeking tech cofounders",
+      "url": "https://news.ycombinator.com/item?id=6828055",
+      "points": 2,
+      "comments": 2,
+      "author": "russellm"
+    },
+    {
+      "title": "Ask HN: How to start SaaS or software business?",
+      "url": "https://news.ycombinator.com/item?id=24702677",
+      "points": 19,
+      "comments": 21,
+      "author": "chaBha"
+    },
+    {
+      "title": "Show HN: Easiest way to build a profitable online business",
+      "url": "https://news.ycombinator.com/item?id=20341130",
+      "points": 1,
+      "comments": 0,
+      "author": "juoemeka"
+    },
+    {
+      "title": "Launch HN: Heimdal (YC S21) – Carbon neutral cement",
+      "url": "https://news.ycombinator.com/item?id=28036927",
+      "points": 617,
+      "comments": 220,
+      "author": "marcuslima"
+    }
+  ]
+}

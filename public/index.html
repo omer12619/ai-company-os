@@ -1,0 +1,783 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI Company OS v4 — React + Paperclip / Hermes / MetaGPT</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600;700&family=Quicksand:wght@500;700&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+  <!-- React 18, Marked.js, Mermaid.js & Highlight.js for Rich IDE & Diagram Rendering -->
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/tokyo-night-dark.min.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body data-theme="classic">
+  <!-- LIVE TOAST CONTAINER -->
+  <div id="toastContainer" class="toast-container"></div>
+  <!-- CELEBRATION FX PARTICLE CANVAS OVERLAY -->
+  <canvas id="celebrationFxCanvas" class="celebration-canvas" style="position:fixed;inset:0;pointer-events:none;z-index:9999;width:100vw;height:100vh;"></canvas>
+
+  <!-- TOP HEADER / COMMAND BAR -->
+  <header class="topbar">
+    <div class="brand-section">
+      <div class="logo-badge">⚡</div>
+      <div>
+        <div class="brand-title-row">
+          <h1 id="companyName">NexusAI SaaS</h1>
+          <span id="companyTheme" class="theme-pill">B2B AI Workflow Automation</span>
+          <span class="provider-pill" style="color:var(--accent);border-color:var(--accent);font-weight:700;" onclick="openOmniPalette()" title="Open Founder Omni-Command Palette (Shortcut: Ctrl+K or ⌘K)">⌘K Command Center</span>
+          <span class="provider-pill" style="color:#38bdf8;border-color:#38bdf8;font-weight:700;" onclick="toggleGlobalProductSplit()" title="Toggle Split-Screen Live Product Runtime">🌐 Live Product Preview</span>
+          <span id="activeProviderBadge" class="provider-pill" onclick="openModal('providerModal')" title="Configure OpenAI, Claude, Gemini, Groq, Ollama, etc.">🔌 Provider: Simulator</span>
+          <span class="provider-pill" style="color:var(--success)" onclick="exportCompanyPack()" title="Paperclip-style Portable Company Pack Export">📦 Export Company Pack</span>
+        </div>
+        <p id="companyGoal" class="mission-subtitle">Loading company mission...</p>
+      </div>
+    </div>
+
+    <div class="controls-section">
+      <select id="speedSelect" class="theme-select" onchange="changePipelineSpeed(this.value)" title="Pipeline Speed">
+        <option value="1000">🚀 Turbo (1.0s)</option>
+        <option value="2200" selected>⚡ Normal (2.2s)</option>
+        <option value="4200">🐢 Relaxed (4.2s)</option>
+      </select>
+
+      <button id="btnToggleLoop" class="btn btn-primary btn-glow" onclick="togglePipeline()">
+        ▶ Start Auto-Pilot
+      </button>
+      <button id="btnStep" class="btn btn-secondary" onclick="stepPipeline()" title="Run 1 single step of the company">
+        ⏭ Next Step
+      </button>
+      <button class="btn btn-secondary" onclick="optimizeCompanyPipeline()" title="CFO & HR Optimizer: Deduplicate SOPs, compress prompts, and balance workload">
+        ✨ Optimize
+      </button>
+      <button class="btn btn-outline" onclick="openModal('companyModal')">
+        🎯 Mission
+      </button>
+      <button class="btn btn-outline" onclick="openModal('providerModal')">
+        🔌 LLMs
+      </button>
+    </div>
+  </header>
+
+  <!-- ONE-CLICK DESIGN THEME BAR & VISUAL PIPELINE STEPPER -->
+  <div class="subbar-grid">
+    <div class="pipeline-stepper">
+      <div id="step-strategy" class="step-node active">
+        <span class="step-num">1</span>
+        <div>
+          <div class="step-title">CEO Strategy</div>
+          <div class="step-desc">MetaGPT Roadmap</div>
+        </div>
+      </div>
+      <div class="step-arrow">➔</div>
+      <div id="step-hiring" class="step-node">
+        <span class="step-num">2</span>
+        <div>
+          <div class="step-title">HR & Sub-Agents</div>
+          <div class="step-desc">Hermes Spawner</div>
+        </div>
+      </div>
+      <div class="step-arrow">➔</div>
+      <div id="step-execution" class="step-node">
+        <span class="step-num">3</span>
+        <div>
+          <div class="step-title">Team Handoffs</div>
+          <div class="step-desc">ChatDev Console</div>
+        </div>
+      </div>
+      <div class="step-arrow">➔</div>
+      <div id="step-qa_evolution" class="step-node">
+        <span class="step-num">4</span>
+        <div>
+          <div class="step-title">QA & Evolution</div>
+          <div class="step-desc">Paperclip Audit</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="theme-switcher-bar">
+      <span class="theme-bar-label">🎨 UI Style:</span>
+      <button class="theme-chip active" data-t="classic" onclick="changeDesignTheme('classic')">Classic</button>
+      <button class="theme-chip" data-t="cyberpunk" onclick="changeDesignTheme('cyberpunk')">Cyberpunk</button>
+      <button class="theme-chip" data-t="neon" onclick="changeDesignTheme('neon')">Neon</button>
+      <button class="theme-chip" data-t="lofi" onclick="changeDesignTheme('lofi')">Lo-Fi</button>
+      <button class="theme-chip" data-t="cute" onclick="changeDesignTheme('cute')">Cute</button>
+      <button class="theme-chip" data-t="bw" onclick="changeDesignTheme('bw')">B&amp;W</button>
+      <button class="theme-chip" data-t="retro80s" onclick="changeDesignTheme('retro80s')">Retro 80s</button>
+      <button class="theme-chip" data-t="glass" onclick="changeDesignTheme('glass')">Daylight</button>
+    </div>
+  </div>
+
+  <!-- LIVE STATUS BANNER -->
+  <div class="status-banner">
+    <div class="status-indicator">
+      <span id="statusDot" class="pulse-dot idle"></span>
+      <span id="statusMessage">Ready! Click "▶ Start Auto-Pilot" or "⏭ Next Step" to watch your AI Company build itself.</span>
+    </div>
+    <div class="telemetry-pills">
+      <span class="cycle-badge" title="Total Child Sub-Agents spawned via Hermes protocol">🧬 Sub-Agents: <strong id="subAgentsCount">0</strong></span>
+      <span class="cycle-badge" title="Cross-department task handoffs">⇄ Handoffs: <strong id="handoffsCount">0</strong></span>
+      <span class="cycle-badge" title="Files generated in Workspace">📂 Files: <strong id="workspaceFilesCount">1</strong></span>
+      <span class="cycle-badge" title="Tokens saved via prompt compression & caching">⚡ Saved: <strong id="tokensSavedCount">0</strong> tok</span>
+      <span class="cycle-badge">Cycle #<strong id="cycleCount">0</strong></span>
+    </div>
+  </div>
+
+  <!-- EXECUTIVE KPI STRIP -->
+  <section class="kpi-strip">
+    <div class="kpi-card">
+      <div class="kpi-top">
+        <span class="kpi-label">Workforce & Sub-Agents</span>
+        <span class="kpi-icon">👥</span>
+      </div>
+      <div class="kpi-value-row">
+        <span id="kpiActiveAgents" class="kpi-value">6</span>
+        <span class="kpi-sub">Employees (<span id="kpiFiredAgents" class="text-danger">0</span> Fired)</span>
+      </div>
+      <div class="kpi-foot">HR Requisitions: <strong id="kpiHireQueue">0</strong> • Active Sub-Agents: <strong id="kpiActiveSubs">0</strong></div>
+    </div>
+
+    <div class="kpi-card">
+      <div class="kpi-top">
+        <span class="kpi-label">CFO Budget & Burn Rate</span>
+        <span class="kpi-icon">💎</span>
+      </div>
+      <div class="kpi-value-row">
+        <span id="kpiBudgetSpent" class="kpi-value">$0.00</span>
+        <span class="kpi-sub">/ $<span id="kpiBudgetTotal">25.00</span></span>
+      </div>
+      <div class="progress-bar-bg">
+        <div id="budgetProgressBar" class="progress-bar-fill" style="width: 0%"></div>
+      </div>
+      <div class="kpi-foot"><span id="kpiTotalTokens">0</span> total LLM tokens audited</div>
+    </div>
+
+    <div class="kpi-card">
+      <div class="kpi-top">
+        <span class="kpi-label">Deliverables & QA Gate</span>
+        <span class="kpi-icon">🛡️</span>
+      </div>
+      <div class="kpi-value-row">
+        <span id="kpiCompletedTasks" class="kpi-value">0</span>
+        <span class="kpi-sub">/ <span id="kpiTotalTasks">0</span> Approved</span>
+      </div>
+      <div class="kpi-foot">Pass Mark: <strong>75/100</strong> • Below 62% KPI = Fired</div>
+    </div>
+
+    <div class="kpi-card">
+      <div class="kpi-top">
+        <span class="kpi-label">Self-Teaching & Hermes Skills</span>
+        <span class="kpi-icon">🧠</span>
+      </div>
+      <div class="kpi-value-row">
+        <span id="kpiAvgScore" class="kpi-value">93%</span>
+        <span class="kpi-sub">Team IQ</span>
+      </div>
+      <div class="kpi-foot"><strong id="kpiTotalSops">12</strong> SOPs • <strong id="kpiSkillsCount">2</strong> Synthesized Skills</div>
+    </div>
+  </section>
+
+  <!-- MAIN WORKSPACE GRID -->
+  <main class="workspace-grid">
+    <!-- LEFT / CENTER PANEL -->
+    <div class="main-panel">
+      <div class="tabs-header">
+        <div class="tabs-nav">
+          <button class="tab-btn active" data-tab="org" onclick="switchTab('org')">
+            🏢 Virtual Office &amp; Org
+          </button>
+          <button class="tab-btn" data-tab="workspace" onclick="switchTab('workspace')">
+            📂 Code & Artifact Workspace (<span id="tabBadgeFiles">1</span>)
+          </button>
+          <button class="tab-btn" data-tab="hermes" onclick="switchTab('hermes')">
+            🛠️ Tools, Sub-Agents &amp; Skills (<span id="tabBadgeSkills">2</span>)
+          </button>
+          <button class="tab-btn" data-tab="console" onclick="switchTab('console')">
+            💬 Shared Console
+          </button>
+          <button class="tab-btn" data-tab="kanban" onclick="switchTab('kanban')">
+            📋 Kanban
+          </button>
+          <button class="tab-btn" data-tab="finance" onclick="switchTab('finance')">
+            📊 CFO Analytics
+          </button>
+          <button class="tab-btn" data-tab="github" onclick="switchTab('github')">
+            🐙 GitHub Stack
+          </button>
+        </div>
+        <div class="tabs-actions">
+          <button class="btn btn-sm btn-secondary" onclick="openModal('hireModal')">+ Hire Agent</button>
+          <button class="btn btn-sm btn-secondary" onclick="openModal('subAgentModal')">🧬 Spawn Sub-Agent</button>
+          <button class="btn btn-sm btn-secondary" onclick="openModal('handoffModal')">⇄ Pass Task</button>
+          <button class="btn btn-sm btn-primary" onclick="openModal('taskModal')">+ New Task</button>
+        </div>
+      </div>
+
+      <!-- TAB 1: LIVE ANIMATED VIRTUAL OFFICE + ORG CHART + REACT NODE GRAPH -->
+      <div id="tab-org" class="tab-content active">
+        <div class="friendly-tip-bar">
+          <span>✨ <strong>Futuristic Command View:</strong> Watch your AI employees walk between rooms, sit at desks typing, spawn orbiting <strong>🧬 Sub-Agent Drones</strong>, and send glowing <strong>📦 Courier Handoffs</strong>! Click any person or card to configure their brain.</span>
+          <div style="display:flex;gap:6px;">
+            <button id="btnViewOffice" class="btn btn-sm btn-primary" onclick="setOrgViewMode('office')">🏢 Animated Virtual Office</button>
+            <button id="btnViewCards" class="btn btn-sm btn-secondary" onclick="setOrgViewMode('cards')">🏛️ Department Cards</button>
+            <button id="btnViewGraph" class="btn btn-sm btn-secondary" onclick="setOrgViewMode('graph')">🕸️ Neural Node-Graph</button>
+            <button id="btnViewKg" class="btn btn-sm btn-secondary" onclick="openKnowledgeGraphModal()">🧠 Semantic Knowledge Graph</button>
+          </div>
+        </div>
+        <div id="hireQueueBanner" class="requisition-banner hidden"></div>
+
+        <!-- REACT ANIMATED 2.5D VIRTUAL OFFICE FLOORPLAN (DEFAULT VISIBLE!) -->
+        <div id="reactVirtualOfficeRoot"></div>
+
+        <!-- REACT NODE GRAPH MOUNT POINT -->
+        <div id="reactNodeGraphRoot" class="hidden" style="margin-bottom:16px;"></div>
+
+        <!-- CARD HIERARCHY VIEW -->
+        <div id="orgChartContainer" class="org-chart-wrapper"></div>
+
+        <!-- LIVE MINI SHARED MISSION CONSOLE PREVIEW -->
+        <div class="mini-console-dock">
+          <div class="section-header-row" style="margin-bottom:8px;">
+            <h3>💬 Live Inter-Agent Handoff & Shared Mission Bus (Recent Activity)</h3>
+            <button class="btn btn-sm btn-outline" onclick="switchTab('console')">Open Full Console ➔</button>
+          </div>
+          <div id="miniConsoleFeed" class="mini-console-list"></div>
+        </div>
+
+        <div class="fired-section">
+          <div class="section-header-row">
+            <h3>🔥 Terminated / Fired Agents Archive (HR Performance Enforcement)</h3>
+            <span class="sub-hint">Underperforming agents are automatically fired by HR and replaced with higher-calibrated specialists.</span>
+          </div>
+          <div id="firedAgentsContainer" class="fired-grid"></div>
+        </div>
+      </div>
+
+      <!-- TAB 2: REACT WORKSPACE FILE EXPLORER (ChatDev / MetaGPT Artifact IDE) -->
+      <div id="tab-workspace" class="tab-content">
+        <div id="reactWorkspaceRoot"></div>
+      </div>
+
+      <!-- TAB 3: HERMES SUB-AGENTS, SMART TOOL ROUTER & SYNTHESIZED SKILLS -->
+      <div id="tab-hermes" class="tab-content">
+        <div id="reactToolRouterRoot" style="margin-bottom: 16px;"></div>
+
+        <div class="hermes-explainer-card">
+          <div>
+            <h3>🧬 Hermes-Style Recursive Sub-Agents & Closed-Loop Skill Synthesis</h3>
+            <p class="sub-hint" style="margin-top:4px;">
+              Inspired by <strong>NousResearch/hermes-agent</strong>: specialist agents spawn focused <strong>Child Sub-Agents</strong> to decompose tasks in parallel, and automatically synthesize reusable <strong>`SKILL.md`</strong> modules into the Workspace when QA approves their work!
+            </p>
+          </div>
+          <button class="btn btn-primary" onclick="openModal('subAgentModal')">🧬 + Spawn Custom Sub-Agent</button>
+        </div>
+
+        <div class="hermes-two-col">
+          <div>
+            <h3 style="margin-bottom:10px;">🤖 Active Parent Agents ➔ Spawned Child Sub-Agents</h3>
+            <div id="subAgentTreeContainer" class="wiki-list"></div>
+          </div>
+          <div>
+            <h3 style="margin-bottom:10px;">🛠️ Synthesized Company Skills (`SKILL.md` Library)</h3>
+            <div id="skillsRegistryContainer" class="wiki-list"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB 4: SHARED MISSION CONSOLE & INTER-AGENT HANDOFF BUS -->
+      <div id="tab-console" class="tab-content">
+        <div class="console-wrapper">
+          <div class="console-input-bar">
+            <select id="consoleRecipientSelect" class="form-input" style="max-width: 260px;"></select>
+            <input id="consoleMessageInput" type="text" class="form-input" style="flex:1;" placeholder="Broadcast a shared mission directive or talk directly to a specific agent..." onkeydown="if(event.key==='Enter') sendConsoleCommand()" />
+            <button class="btn btn-primary" onclick="sendConsoleCommand()">📡 Send Message</button>
+            <button class="btn btn-secondary" onclick="openModal('handoffModal')">⇄ Pass Task</button>
+          </div>
+          <div id="consoleTerminal" class="console-terminal"></div>
+        </div>
+      </div>
+
+      <!-- TAB 5: KANBAN PIPELINE -->
+      <div id="tab-kanban" class="tab-content">
+        <div class="kanban-board">
+          <div class="kanban-col">
+            <div class="kanban-col-header">
+              <span>📥 Backlog</span>
+              <span id="countBacklog" class="count-pill">0</span>
+            </div>
+            <div id="colBacklog" class="kanban-list"></div>
+          </div>
+
+          <div class="kanban-col">
+            <div class="kanban-col-header">
+              <span>⚡ Active & Handoffs</span>
+              <span id="countInProgress" class="count-pill">0</span>
+            </div>
+            <div id="colInProgress" class="kanban-list"></div>
+          </div>
+
+          <div class="kanban-col">
+            <div class="kanban-col-header">
+              <span>🔍 QA Audit Gate</span>
+              <span id="countQaReview" class="count-pill">0</span>
+            </div>
+            <div id="colQaReview" class="kanban-list"></div>
+          </div>
+
+          <div class="kanban-col">
+            <div class="kanban-col-header">
+              <span>✅ Approved & Published</span>
+              <span id="countCompleted" class="count-pill">0</span>
+            </div>
+            <div id="colCompleted" class="kanban-list"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB 6: CFO FINANCIAL LEDGER & REACT ANALYTICS COMPONENT -->
+      <div id="tab-finance" class="tab-content">
+        <div id="reactAnalyticsRoot" style="margin-bottom:18px;"></div>
+        <div id="deptSpendContainer" class="dept-spend-grid"></div>
+        <h3 style="margin: 16px 0 10px;">Transaction Ledger (Per-Agent LLM Calls Audited by CFO)</h3>
+        <div class="table-scroll">
+          <table class="ledger-table">
+            <thead>
+              <tr>
+                <th>Time</th>
+                <th>Agent</th>
+                <th>Department</th>
+                <th>Action</th>
+                <th>Provider / Model</th>
+                <th>Tokens</th>
+                <th>Cost</th>
+              </tr>
+            </thead>
+            <tbody id="ledgerTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- TAB 7: OPEN-SOURCE GITHUB STACK & PORTABLE COMPANY PACKS -->
+      <div id="tab-github" class="tab-content">
+        <div id="reactGitHubRoot"></div>
+      </div>
+    </div>
+
+    <!-- RIGHT SIDEBAR: LIVE CORPORATE EVENT FEED -->
+    <aside class="event-sidebar">
+      <div class="sidebar-header">
+        <h3>📡 Live Corporate Feed</h3>
+        <span class="sub-hint">Real-Time Log</span>
+      </div>
+      <div id="eventFeed" class="event-feed-list"></div>
+    </aside>
+  </main>
+
+  <!-- MODAL: COMPANY GOAL & TEMPLATES -->
+  <div id="companyModal" class="modal-overlay hidden">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h2>🎯 Launch or Pivot AI Company</h2>
+        <button class="close-btn" onclick="closeModal('companyModal')">✕</button>
+      </div>
+      <div class="modal-body">
+        <label class="field-label">1-Click Industry Templates</label>
+        <div id="templateButtons" class="template-grid"></div>
+
+        <div class="form-group">
+          <label class="field-label">Company Name</label>
+          <input id="inputCompanyName" type="text" class="form-input" placeholder="e.g. NovaScale AI" />
+        </div>
+        <div class="form-group">
+          <label class="field-label">Company Theme / Industry</label>
+          <input id="inputCompanyTheme" type="text" class="form-input" placeholder="e.g. Autonomous FinTech & Compliance" />
+        </div>
+        <div class="form-group">
+          <label class="field-label">Shared Company Mission & Goal</label>
+          <textarea id="inputCompanyGoal" rows="3" class="form-input" placeholder="Describe what the agents should collaboratively build, market, and optimize..."></textarea>
+        </div>
+        <div class="form-group">
+          <label class="field-label">CFO Total Budget Cap ($ USD)</label>
+          <input id="inputCompanyBudget" type="number" step="1" class="form-input" value="25" />
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="closeModal('companyModal')">Cancel</button>
+        <button class="btn btn-primary" onclick="submitCompanyInit()">🚀 Initialize Company</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: MULTI-PROVIDER LLM SETTINGS -->
+  <div id="providerModal" class="modal-overlay hidden">
+    <div class="modal-box modal-lg">
+      <div class="modal-header">
+        <h2>🔌 Universal LLM Provider Router</h2>
+        <button class="close-btn" onclick="closeModal('providerModal')">✕</button>
+      </div>
+      <div class="modal-body">
+        <p class="sub-hint" style="margin-bottom:12px;">
+          Configure your default company LLM provider below. You can also assign different providers/models to individual agents by clicking their card in the Org Chart!
+        </p>
+        <div class="form-group">
+          <label class="field-label">Default Company LLM Provider</label>
+          <select id="selectActiveProvider" class="form-input" onchange="onProviderSelectChange()"></select>
+        </div>
+
+        <div id="providerConfigFields" class="provider-config-box">
+          <div class="form-group">
+            <label class="field-label">Model Name</label>
+            <input id="inputProviderModel" type="text" class="form-input" placeholder="e.g. gpt-4o-mini / claude-3-7-sonnet-latest / llama3.2" />
+            <div id="modelPresetPills" class="preset-pills-row"></div>
+          </div>
+          <div class="form-group">
+            <label class="field-label">API Key (Stored locally in server state)</label>
+            <input id="inputProviderKey" type="password" class="form-input" placeholder="sk-... / AIza... (Not needed for Ollama or Simulator)" />
+          </div>
+          <div class="form-group">
+            <label class="field-label">Endpoint Base URL</label>
+            <input id="inputProviderUrl" type="text" class="form-input" placeholder="https://api.openai.com/v1/chat/completions" />
+          </div>
+          <div id="providerRecommendation" class="sub-hint" style="margin-top:6px;"></div>
+          <div id="providerTestResult" style="margin-top:8px;font-family:'JetBrains Mono',monospace;font-size:0.75rem;"></div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="closeModal('providerModal')">Cancel</button>
+        <button class="btn btn-secondary" onclick="testProviderConnection()">🔌 Test Connection</button>
+        <button class="btn btn-primary" onclick="saveProviderConfig()">💾 Save Provider Settings</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: DEEP AGENT INSPECTOR & CONFIGURATION -->
+  <div id="agentModal" class="modal-overlay hidden">
+    <div class="modal-box modal-lg">
+      <div class="modal-header">
+        <h2 id="inspectAgentTitle">Agent Profile & Configuration</h2>
+        <button class="close-btn" onclick="closeModal('agentModal')">✕</button>
+      </div>
+      <div id="inspectAgentBody" class="modal-body"></div>
+    </div>
+  </div>
+
+  <!-- MODAL: SPAWN HERMES SUB-AGENT -->
+  <div id="subAgentModal" class="modal-overlay hidden">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h2>🧬 Spawn Hermes Child Sub-Agent</h2>
+        <button class="close-btn" onclick="closeModal('subAgentModal')">✕</button>
+      </div>
+      <div class="modal-body">
+        <p class="sub-hint" style="margin-bottom:12px;">
+          Delegate a narrow subtask to a specialized Child Sub-Agent attached to any parent agent.
+        </p>
+        <div class="form-group">
+          <label class="field-label">Parent Specialist Agent</label>
+          <select id="selectParentAgent" class="form-input"></select>
+        </div>
+        <div class="form-group">
+          <label class="field-label">Sub-Agent Specialty / Role</label>
+          <input id="inputSubSpecialty" type="text" class="form-input" placeholder="e.g. SQL Migration Micro-Agent / Ad Headline Variant Bot" />
+        </div>
+        <div class="form-group">
+          <label class="field-label">Specific Task Focus</label>
+          <input id="inputSubFocus" type="text" class="form-input" placeholder="e.g. Stress-test database schema for 10k concurrent users" />
+        </div>
+        <div class="form-group" style="display:flex;align-items:center;gap:8px;">
+          <input id="checkPromoteSub" type="checkbox" />
+          <label for="checkPromoteSub" style="font-size:0.82rem;cursor:pointer;">Also queue HR requisition to promote this sub-agent to full-time employee</label>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="closeModal('subAgentModal')">Cancel</button>
+        <button class="btn btn-primary" onclick="submitSpawnSubAgent()">🧬 Spawn Sub-Agent</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: MANUAL HIRE SPECIFIC AGENT -->
+  <div id="hireModal" class="modal-overlay hidden">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h2>🤝 Recruit Specific Specialist Agent (HR)</h2>
+        <button class="close-btn" onclick="closeModal('hireModal')">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="field-label">Specialist Role Title</label>
+          <input id="inputHireRole" type="text" class="form-input" placeholder="e.g. Principal Security Auditor / Viral TikTok Strategist" />
+        </div>
+        <div class="form-grid-2">
+          <div class="form-group">
+            <label class="field-label">Department</label>
+            <select id="inputHireDept" class="form-input">
+              <option value="Engineering">Engineering (CTO)</option>
+              <option value="Marketing">Marketing (CMO)</option>
+              <option value="Finance">Finance (CFO)</option>
+              <option value="QA">QA & Compliance</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="field-label">Dedicated LLM Provider</label>
+            <select id="inputHireProvider" class="form-input">
+              <option value="inherit">Inherit Company Default</option>
+              <option value="openai">OpenAI</option>
+              <option value="anthropic">Anthropic Claude</option>
+              <option value="gemini">Google Gemini</option>
+              <option value="groq">Groq</option>
+              <option value="deepseek">DeepSeek</option>
+              <option value="ollama">Ollama (Local)</option>
+              <option value="simulator">Autonomous Simulator</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="field-label">Agent Harness Type (Paperclip BYOA)</label>
+          <select id="inputHireHarness" class="form-input">
+            <option value="Hermes Specialist Node">Hermes Specialist Node (Recursive Sub-Agents)</option>
+            <option value="ChatDev Coding Node">ChatDev Communicative Coding Node</option>
+            <option value="MetaGPT SOP Node">MetaGPT Standardized SOP Node</option>
+            <option value="Claude Code CLI Harness">Claude Code / Terminal Harness</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="field-label">Equipped Agent Tools (Comma-separated)</label>
+          <input id="inputHireTools" type="text" class="form-input" value="web_search, code_synth, subagent_spawner, handoff_bus" />
+        </div>
+        <div class="form-group">
+          <label class="field-label">Hiring Justification / Shared Mission Role</label>
+          <input id="inputHireReason" type="text" class="form-input" placeholder="How will this agent collaborate with other workers?" />
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="closeModal('hireModal')">Cancel</button>
+        <button class="btn btn-primary" onclick="submitManualHire()">✨ Recruit & Onboard Agent</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: PASS / HANDOFF TASK BETWEEN AGENTS -->
+  <div id="handoffModal" class="modal-overlay hidden">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h2>⇄ Pass / Handoff Task Between Specific Agents</h2>
+        <button class="close-btn" onclick="closeModal('handoffModal')">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="field-label">Select Shared Task</label>
+          <select id="selectHandoffTask" class="form-input"></select>
+        </div>
+        <div class="form-group">
+          <label class="field-label">Pass To Specialist Agent</label>
+          <select id="selectHandoffAgent" class="form-input"></select>
+        </div>
+        <div class="form-group">
+          <label class="field-label">Handoff Instructions / Context Note</label>
+          <textarea id="inputHandoffNote" rows="3" class="form-input" placeholder="e.g. Architecture spec is ready; validate unit costs and append pricing table..."></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="closeModal('handoffModal')">Cancel</button>
+        <button class="btn btn-primary" onclick="submitManualHandoff()">⇄ Execute Handoff on Console</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: ADD SHARED TASK -->
+  <div id="taskModal" class="modal-overlay hidden">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h2>📋 Add Cross-Department Shared Task</h2>
+        <button class="close-btn" onclick="closeModal('taskModal')">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="field-label">Task Title</label>
+          <input id="inputTaskTitle" type="text" class="form-input" placeholder="e.g. Build Stripe Webhook & Subscription Tier Schema" />
+        </div>
+        <div class="form-grid-2">
+          <div class="form-group">
+            <label class="field-label">Lead Department (Stage 1)</label>
+            <select id="inputTaskDept" class="form-input">
+              <option value="Engineering">Engineering</option>
+              <option value="Marketing">Marketing</option>
+              <option value="Finance">Finance</option>
+              <option value="QA">QA</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="field-label">Handoff Partner Dept (Stage 2)</label>
+            <select id="inputTaskCollabDept" class="form-input">
+              <option value="Finance">Finance</option>
+              <option value="Marketing">Marketing</option>
+              <option value="Engineering">Engineering</option>
+              <option value="QA">QA</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="field-label">Detailed Deliverable & Handoff Instructions</label>
+          <textarea id="inputTaskDesc" rows="3" class="form-input" placeholder="Specify what the lead agent should build and pass to the partner department..."></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="closeModal('taskModal')">Cancel</button>
+        <button class="btn btn-primary" onclick="submitManualTask()">➕ Queue Shared Task</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: DELIVERABLE & HANDOFF CHAIN VIEWER -->
+  <div id="deliverableModal" class="modal-overlay hidden">
+    <div class="modal-box modal-lg">
+      <div class="modal-header">
+        <h2 id="deliverableModalTitle">Deliverable</h2>
+        <button class="close-btn" onclick="closeModal('deliverableModal')">✕</button>
+      </div>
+      <div id="deliverableModalBody" class="modal-body"></div>
+    </div>
+  </div>
+
+  <!-- MODAL: CREATE CUSTOM EXECUTABLE MCP TOOL (v10) -->
+  <div id="customToolModal" class="modal-overlay hidden">
+    <div class="modal-box modal-lg">
+      <div class="modal-header">
+        <h2>🔌 Register Custom Executable MCP Tool (`node:vm` Sandbox)</h2>
+        <button class="close-btn" onclick="closeModal('customToolModal')">✕</button>
+      </div>
+      <div class="modal-body">
+        <p class="sub-hint" style="margin-bottom:12px;">
+          Author a custom executable JavaScript tool that mounts onto an <strong>MCP Server</strong>, equips onto your department's agents, and runs inside an isolated <code>node:vm</code> sandbox writing real JSON artifacts to <code>/workspace</code>.
+        </p>
+        <div class="form-grid-2">
+          <div class="form-group">
+            <label class="field-label">Tool ID (snake_case)</label>
+            <input id="inputCustomToolId" type="text" class="form-input" placeholder="e.g. churn_cohort_predictor" />
+          </div>
+          <div class="form-group">
+            <label class="field-label">Display Name</label>
+            <input id="inputCustomToolName" type="text" class="form-input" placeholder="e.g. SaaS Churn Cohort Predictor" />
+          </div>
+        </div>
+        <div class="form-grid-2">
+          <div class="form-group">
+            <label class="field-label">Target Department</label>
+            <select id="inputCustomToolDept" class="form-input">
+              <option value="Engineering">Engineering</option>
+              <option value="Marketing">Marketing</option>
+              <option value="Finance">Finance</option>
+              <option value="QA">QA</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="field-label">Mount on MCP Server</label>
+            <select id="inputCustomToolMcp" class="form-input">
+              <option value="mcp-filesystem">📂 mcp-filesystem (Engineering & AST)</option>
+              <option value="mcp-sqlite-architect">🗄️ mcp-sqlite-architect (SQL & Contracts)</option>
+              <option value="mcp-playwright-auditor">🌐 mcp-playwright-auditor (DOM & Market Intel)</option>
+              <option value="mcp-stripe-finops">💎 mcp-stripe-finops (Stripe & Monte Carlo)</option>
+              <option value="mcp-github-ops">🛡️ mcp-github-ops (CI Tests & QA)</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="field-label">Semantic Routing Keywords (Comma-separated for Progressive Discovery)</label>
+          <input id="inputCustomToolKeywords" type="text" class="form-input" value="churn, retention, cohort, SaaS, architecture, api, metric" />
+        </div>
+        <div class="form-group">
+          <label class="field-label">Tool Description</label>
+          <input id="inputCustomToolDesc" type="text" class="form-input" placeholder="Computes 12-month net dollar retention (NDR) and cohort churn risk." />
+        </div>
+        <div class="form-group">
+          <label class="field-label">Executable Node.js VM Script (Assign output object to <code>result</code>)</label>
+          <textarea id="inputCustomToolCode" rows="5" class="form-input" style="font-family:'JetBrains Mono', monospace;font-size:0.78rem;">result = {
+  tool: "custom_mcp_analyzer",
+  analyzedTask: task.title,
+  netDollarRetentionPct: 118.5,
+  estimatedLatencyMs: 6.4,
+  verdict: "OPTIMAL",
+  timestamp: new Date().toISOString()
+};</textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="closeModal('customToolModal')">Cancel</button>
+        <button class="btn btn-primary" onclick="submitCreateCustomMcpTool()">🚀 Register &amp; Run MCP Tool</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: CTRL+K OMNI-COMMAND PALETTE (v12) -->
+  <div id="omniPaletteModal" class="modal-overlay hidden" onclick="if(event.target===this) closeOmniPalette()">
+    <div class="omni-box">
+      <div class="omni-search-bar">
+        <span class="omni-icon">⚡</span>
+        <input id="omniSearchInput" type="text" class="omni-input" placeholder="Type a command or search agents, tools, evals, tabs... (Esc to close)" oninput="filterOmniActions(this.value)" onkeydown="handleOmniKeyNav(event)" />
+        <span class="omni-key-badge">ESC</span>
+      </div>
+      <div id="omniResultsList" class="omni-results-scroll"></div>
+    </div>
+  </div>
+
+  <!-- MODAL: INTERACTIVE VISUAL SEMANTIC KNOWLEDGE GRAPH (v12) -->
+  <div id="knowledgeGraphModal" class="modal-overlay hidden">
+    <div class="modal-box modal-lg" style="max-width: 960px;">
+      <div class="modal-header">
+        <h2>🧠 Bi-Temporal Semantic Knowledge Graph Explorer (Mem0 / Zep Graphiti Pattern)</h2>
+        <button class="close-btn" onclick="closeModal('knowledgeGraphModal')">✕</button>
+      </div>
+      <div class="modal-body">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px;">
+          <span class="sub-hint">Visual graph mapping entities, schemas, microservices, and cross-agent provenance across company history.</span>
+          <div style="display:flex;gap:6px;">
+            <button class="btn btn-sm btn-secondary" onclick="consolidateMemoryFromModal()">🧠 Consolidate ("Reflect")</button>
+            <button class="btn btn-sm btn-outline" onclick="renderVisualKnowledgeGraph()">🔄 Redraw Canvas</button>
+          </div>
+        </div>
+        <div id="kgCanvasContainer" class="kg-canvas-wrapper">
+          <svg id="kgVisualSvg" width="100%" height="100%" viewBox="0 0 900 460"></svg>
+        </div>
+        <div id="kgNodeDetailsPane" style="margin-top:10px;font-size:0.75rem;color:var(--text-muted);font-family:'JetBrains Mono',monospace;">
+          Click any glowing node or arrow to inspect its temporal provenance and confidence score.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: HUMAN-IN-THE-LOOP DIFF APPROVAL & COUNTERFACTUAL STATE EDITOR (v12) -->
+  <div id="diffApprovalModal" class="modal-overlay hidden">
+    <div class="modal-box modal-lg">
+      <div class="modal-header">
+        <h2 id="diffModalTitle">✋ Human-in-the-Loop (HITL) Deliverable & State Approval</h2>
+        <button class="close-btn" onclick="closeModal('diffApprovalModal')">✕</button>
+      </div>
+      <div class="modal-body">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px;">
+          <span class="sub-hint">Inspect code & deliverable diff before approving handoff or modifying mid-flight state.</span>
+          <span id="diffStageBadge" class="task-dept-tag">PRIMARY STAGE</span>
+        </div>
+        <div id="diffViewContainer" class="diff-container"></div>
+        <div style="margin-top:12px;">
+          <label class="field-label">Counterfactual Payload / Prompt Injection (Optional Mid-Flight Edit)</label>
+          <textarea id="inputDiffEditContent" rows="4" class="form-input" style="font-family:'JetBrains Mono',monospace;font-size:0.76rem;" placeholder="Optionally modify the deliverable or append instructions before approving..."></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="closeModal('diffApprovalModal')">Cancel</button>
+        <button class="btn btn-danger" onclick="rejectAndRetrainFromDiff()">⚡ Request Retrain (QA Gate)</button>
+        <button class="btn btn-success" onclick="approveAndCommitFromDiff()">✅ Approve &amp; Commit Changes</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/virtual-office.js"></script>
+  <script src="/app.js"></script>
+</body>
+</html>

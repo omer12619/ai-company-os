@@ -1,0 +1,24 @@
+{
+  "name": "ai-company-os",
+  "version": "0.1.0",
+  "description": "Open-Source Autonomous AI Company & Agency OS — Self-organizing LLM pipelines that hire, train, and fire specialized agents (CEO, CTO, CFO, CMO, HR, QA, and workers) to achieve any company goal.",
+  "main": "server/index.js",
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "node --watch server/index.js"
+  },
+  "keywords": [
+    "ai-agents",
+    "autonomous-company",
+    "llm-pipeline",
+    "multi-agent",
+    "open-source",
+    "agency-os"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2"
+  }
+}

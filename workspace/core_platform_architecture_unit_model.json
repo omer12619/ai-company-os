@@ -1,0 +1,32 @@
+{
+  "modelName": "Core Platform Architecture & API Pipeline",
+  "preparedBy": "Unit Economics Analyst (Vega)",
+  "mission": "Build and scale a profitable product with autonomous AI pipelines.",
+  "monteCarloTrials": 1000,
+  "simulatedMeanGrossMarginPct": 89.2,
+  "ltvToCacRatio": 6.8,
+  "cacPaybackMonths": 1.9,
+  "tiers": [
+    {
+      "tier": "Starter",
+      "priceUsd": 49,
+      "tokenCogsUsd": 4.2,
+      "grossMarginPct": 91.4
+    },
+    {
+      "tier": "Growth",
+      "priceUsd": 149,
+      "tokenCogsUsd": 14.8,
+      "grossMarginPct": 90.1
+    },
+    {
+      "tier": "Enterprise",
+      "priceUsd": 499,
+      "tokenCogsUsd": 48.5,
+      "grossMarginPct": 90.3
+    }
+  ],
+  "breakEvenCustomers": 42,
+  "projectedMrrMonth12": 64200,
+  "generatedAt": "2026-10-31T22:06:02.961Z"
+}
