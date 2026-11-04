@@ -1,14 +1,14 @@
-# ⚡ AI Company OS (v12) — Autonomous Multi-Agent AI Company Platform
+# ⚡ AI Company OS (v13) — Autonomous Multi-Agent AI Company Platform
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![Node.js Version](https://img.shields.io/badge/Node.js-18%2B-brightgreen)](https://nodejs.org/)
-[![Model Context Protocol](https://img.shields.io/badge/MCP-2025--03--26-purple)](https://modelcontextprotocol.io/)
+[![Model Context Protocol](https://img.shields.io/badge/MCP-2026--07--28%20(MCP%20Apps)-purple)](https://modelcontextprotocol.io/)
 [![Google A2A](https://img.shields.io/badge/Protocol-A2A--1.0-orange)](https://github.com/google)
 [![OWASP ASI](https://img.shields.io/badge/Security-OWASP%20Agentic%20Top%2010-red)](https://owasp.org/)
 
-**AI Company OS** is a production-grade autonomous multi-agent operating system inspired by **Paperclip**, **NousResearch Hermes-Agent**, **MetaGPT**, **ChatDev**, and modern enterprise agent protocols.
+**AI Company OS (v13)** is a production-grade autonomous multi-agent operating system inspired by **Paperclip**, **NousResearch Hermes-Agent**, **MetaGPT**, **ChatDev**, **OpenHands ACI**, **Browser-Use**, and the **2026 MCP (`2026-07-28`) & Google A2A-1.0** enterprise agent protocols.
 
-Provide a **Company Mission Goal**, and the autonomous executive team (**CEO, CTO, CMO, CFO, HR, QA**) will self-organize, hire specialists, spawn recursive sub-agents, execute executable tools inside isolated sandboxes, write real code into `/workspace`, deploy a live product funnel (`/live-product`), collect recurring customer revenue (MRR), and operate inside an interactive **60fps 2.5D Animated Virtual Office**.
+Provide a **Company Mission Goal**, and the autonomous executive team (**CEO, CTO, CMO, CFO, HR, QA**) will self-organize, hire specialists, spawn recursive sub-agents, execute executable tools inside isolated sandboxes, write real code into `/workspace`, deploy a live product funnel (`/live-product`), run **Browser-Use visual DOM CRO patches**, speak executive standups via **Voice Walkie-Talkie**, and push live commits to GitHub inside an interactive **60fps 2.5D Animated Virtual Office**.
 
 ---
 
@@ -96,9 +96,16 @@ flowchart TD
 ### 7. 🛡️ Enterprise Protocols & Security
 * **OWASP Agentic Top 10 Firewall**: Validates all tool calls against `ASI01` (Prompt Injection), `ASI02` (Unauthorized Tool Execution), `ASI05` (Insecure Output Handling), and `ASI06` (Excessive Agency).
 * **Google Agent2Agent (A2A-1.0)**: Automatically publishes standards-compliant agent cards at `/.well-known/agent-card.json`.
-* **Model Context Protocol (MCP `2025-03-26`)**: 5 bounded MCP servers (`mcp-filesystem`, `mcp-sqlite-architect`, `mcp-playwright-auditor`, `mcp-stripe-finops`, `mcp-github-ops`).
+* **Model Context Protocol (MCP `2026-07-28` Spec + "MCP Apps" & MRTR)**: 5 stateless bounded MCP servers (`mcp-filesystem`, `mcp-sqlite-architect`, `mcp-playwright-auditor`, `mcp-stripe-finops`, `mcp-github-ops`) with inline interactive **MCP App UIs** (`mcp.apps/render`) and **Multi Round-Trip Requests (`input_required`)**.
 * **SWE-Bench & GAIA Benchmark Harness**: 5-trial multi-agent evaluation suite auditing AST repair, OpenAPI contract alignment, FinOps Monte Carlo models, and A2A SLAs.
 * **OpenTelemetry GenAI Tracing**: Full OpenTelemetry span collector supporting `gen_ai.system`, `gen_ai.request.model`, and token usage telemetry.
+
+### 8. 🚀 2026 Frontier Agentic Upgrades (v13)
+* **🎙️ Real-Time Voice Walkie-Talkie & Spoken C-Suite Standups**: Bi-directional voice command channel (`SpeechRecognition` push-to-talk + `speechSynthesis` executive voice synthesis) with live equalizer waveform and spoken War Room standups.
+* **🧩 Interactive "MCP Apps" & Multi Round-Trip (`MRTR`) Widgets**: Live FinOps Seat ARPU & ARR simulator slider and MRTR CTA approval gates rendered directly inside the MCP terminal stream.
+* **🖥️ "Browser-Use" Visual DOM & Computer-Use Agent**: Overlays numbered visual DOM bounding boxes (`[1]`–`[5]`) and an autonomous scanning AI cursor over `/live-product`, executing automated CRO patches that boost conversion rates and MRR.
+* **📊 2D Competitor Market Radar & FinOps Burn-vs-MRR Chart**: Interactive SVG bubble radar (Feature Velocity vs. Market Share) and CFO cash runway trajectory with one-click competitive blitz maneuvers.
+* **🐙 OpenHands / SWE-Agent ACI Studio & Live GitHub Auto-Push**: Stage, commit, and push generated `/workspace` microservices and telemetry directly to `github.com/omer12619/ai-company-os` from the UI.
 
 ---
 

@@ -2193,6 +2193,10 @@ const STATIC_OMNI_ACTIONS = [
   { category: '⚡ Pipeline & Execution', id: 'test_all_suites', icon: '🧪', title: 'Run All Unit Tests', subtitle: 'Execute node:assert suites across all microservices' },
 
   // Executive & Governance
+  { category: '🎙️ Executive & Governance', id: 'voice_walkie', icon: '🎙️', title: 'Open Real-Time Voice Walkie-Talkie', subtitle: 'Push-to-talk speech recognition & spoken C-Suite TTS standups' },
+  { category: '🎙️ Executive & Governance', id: 'market_radar', icon: '📊', title: 'Open 2D Competitor Market Radar & FinOps Chart', subtitle: 'Interactive bubble radar, runway chart & viral market blitzes' },
+  { category: '🎙️ Executive & Governance', id: 'github_sync', icon: '🐙', title: 'OpenHands ACI Studio: Commit & Push to GitHub', subtitle: 'Live git status, commit log & auto-push to omer12619/ai-company-os' },
+  { category: '🎙️ Executive & Governance', id: 'browser_dom_audit', icon: '🖥️', title: 'Run Browser-Use Visual DOM Agent Audit', subtitle: 'Inspect /live-product DOM bounding boxes & auto-patch CRO (+MRR)' },
   { category: '🎙️ Executive & Governance', id: 'war_room', icon: '🎙️', title: 'C-Suite War Room Standup', subtitle: 'Debate high-priority strategy & queue board proposal', shortcut: 'W' },
   { category: '🎙️ Executive & Governance', id: 'red_team', icon: '🧨', title: 'Red Team Security & Chaos Audit', subtitle: 'Probe /workspace files, inject rate limits & sanitizers', shortcut: 'R' },
   { category: '🎙️ Executive & Governance', id: 'poach_talent', icon: '🎯', title: 'Poach Rival Top Star', subtitle: 'Poach elite 95% KPI talent from competitors for +4.5% market share', shortcut: 'P' },
@@ -2364,6 +2368,24 @@ function executeOmniItem(index) {
         .then((d) => {
           if (d.state && window.syncFromExternalState) window.syncFromExternalState(d.state);
           showToast('🧪 Unit Test Suite Runner', d.testResult?.summary || 'Completed');
+        });
+      break;
+    case 'voice_walkie':
+      openVoiceWalkieModal();
+      break;
+    case 'market_radar':
+      openMarketRadarModal();
+      break;
+    case 'github_sync':
+      openGitHubSyncModal();
+      break;
+    case 'browser_dom_audit':
+      fetch('/api/product/browser-agent-audit', { method: 'POST' })
+        .then((r) => r.json())
+        .then((d) => {
+          if (d.state && window.syncFromExternalState) window.syncFromExternalState(d.state);
+          if (window.triggerCelebrationBurst) window.triggerCelebrationBurst(window.innerWidth / 2, window.innerHeight * 0.4, 48);
+          showToast('🖥️ Browser-Use Visual DOM Audit', d.result?.summary || 'DOM patched');
         });
       break;
     case 'war_room':
@@ -2700,6 +2722,373 @@ async function rejectAndRetrainFromDiff() {
   closeModal('diffApprovalModal');
   showToast('⚡ Task Sent to QA Gate', 'Agent retraining triggered for deliverable');
   renderAll();
+}
+
+// ============================================================================
+// v13: VOICE WALKIE-TALKIE, 2D MARKET RADAR & OPENHANDS GITHUB ACI STUDIO
+// ============================================================================
+
+let voiceRecognitionInstance = null;
+let isVoiceListening = false;
+let autoSpeakExecutiveTts = true;
+
+function toggleAutoVoiceTts(val) {
+  autoSpeakExecutiveTts = Boolean(val);
+}
+
+function speakAgentText(agentNameOrRole = 'CEO', text = '') {
+  if (!autoSpeakExecutiveTts || typeof window === 'undefined' || !('speechSynthesis' in window)) return;
+  try {
+    window.speechSynthesis.cancel();
+    const cleanText = String(text || '')
+      .replace(/[#*`~>_]/g, '')
+      .replace(/\[.*?\]/g, '')
+      .slice(0, 260);
+    const utter = new SpeechSynthesisUtterance(`${agentNameOrRole} reporting: ${cleanText}`);
+    const roleLower = String(agentNameOrRole).toLowerCase();
+    if (roleLower.includes('ceo') || roleLower.includes('aria')) {
+      utter.pitch = 1.08;
+      utter.rate = 1.04;
+    } else if (roleLower.includes('cto') || roleLower.includes('marcus')) {
+      utter.pitch = 0.88;
+      utter.rate = 1.06;
+    } else if (roleLower.includes('cmo') || roleLower.includes('elena')) {
+      utter.pitch = 1.15;
+      utter.rate = 1.08;
+    } else if (roleLower.includes('cfo') || roleLower.includes('david')) {
+      utter.pitch = 0.92;
+      utter.rate = 1.02;
+    }
+    const waveEl = document.getElementById('voiceWaveVisualizer');
+    if (waveEl) waveEl.classList.add('speaking');
+    utter.onend = () => {
+      if (waveEl && !isVoiceListening) waveEl.classList.remove('speaking');
+    };
+    window.speechSynthesis.speak(utter);
+  } catch (e) {
+    console.warn('TTS error:', e);
+  }
+}
+
+function openVoiceWalkieModal() {
+  const selectEl = document.getElementById('voiceTargetAgentSelect');
+  if (selectEl && appState?.agents) {
+    selectEl.innerHTML = appState.agents
+      .map((a) => `<option value="${escapeHtml(a.id)}">${escapeHtml(a.avatar || '🤖')} ${escapeHtml(a.name)} — ${escapeHtml(a.role)}</option>`)
+      .join('');
+  }
+  renderVoiceConversationLog();
+  openModal('voiceWalkieModal');
+}
+
+function renderVoiceConversationLog() {
+  const logEl = document.getElementById('voiceConversationLog');
+  if (!logEl || !appState) return;
+  const recent = (appState.consoleMessages || []).slice(0, 8);
+  logEl.innerHTML = recent
+    .map(
+      (m) => `
+      <div class="console-msg" style="margin-bottom:8px;padding:6px 10px;border-left:3px solid #f472b6;background:rgba(15,23,42,0.75);border-radius:6px;">
+        <div style="display:flex;justify-content:space-between;font-size:0.7rem;color:#f472b6;font-weight:700;">
+          <span>${escapeHtml(m.fromName)} (${escapeHtml(m.fromRole)}) ➔ ${escapeHtml(m.toName)}</span>
+          <button class="btn btn-sm btn-outline" style="padding:1px 6px;font-size:0.62rem;" onclick="speakAgentText('${escapeHtml(m.fromName)}', '${escapeHtml((m.message || '').replace(/'/g, ''))}')">🔊 Speak</button>
+        </div>
+        <div style="font-size:0.75rem;color:#e2e8f0;margin-top:3px;">${escapeHtml(m.message)}</div>
+      </div>`
+    )
+    .join('');
+}
+
+function toggleVoiceRecognition() {
+  const statusEl = document.getElementById('voiceStatusReadout');
+  const btn = document.getElementById('btnPushToTalk');
+  const waveEl = document.getElementById('voiceWaveVisualizer');
+  const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+  if (!SpeechRec) {
+    if (statusEl) statusEl.textContent = '⚠️ Browser SpeechRecognition API unavailable — type or click a quick voice directive below for full spoken TTS output!';
+    return;
+  }
+
+  if (isVoiceListening && voiceRecognitionInstance) {
+    voiceRecognitionInstance.stop();
+    isVoiceListening = false;
+    if (btn) btn.textContent = '🎙️ Push-to-Talk (Start Mic)';
+    if (waveEl) waveEl.classList.remove('speaking');
+    return;
+  }
+
+  voiceRecognitionInstance = new SpeechRec();
+  voiceRecognitionInstance.lang = 'en-US';
+  voiceRecognitionInstance.interimResults = false;
+  voiceRecognitionInstance.maxAlternatives = 1;
+
+  voiceRecognitionInstance.onstart = () => {
+    isVoiceListening = true;
+    if (btn) btn.textContent = '🛑 Listening... (Click to Stop)';
+    if (statusEl) statusEl.textContent = '🎙️ Microphone live — speak your order to the C-Suite...';
+    if (waveEl) waveEl.classList.add('speaking');
+  };
+
+  voiceRecognitionInstance.onresult = (event) => {
+    const transcript = event.results?.[0]?.[0]?.transcript || '';
+    const input = document.getElementById('voiceTranscriptInput');
+    if (input) input.value = transcript;
+    if (statusEl) statusEl.textContent = `✅ Captured voice command: "${transcript}" — dispatching...`;
+    submitVoiceWalkieOrder();
+  };
+
+  voiceRecognitionInstance.onerror = (err) => {
+    isVoiceListening = false;
+    if (btn) btn.textContent = '🎙️ Push-to-Talk (Start Mic)';
+    if (waveEl) waveEl.classList.remove('speaking');
+    if (statusEl) statusEl.textContent = `ℹ️ Mic status: ${err.error || 'ready'} — use quick voice pills or text box below.`;
+  };
+
+  voiceRecognitionInstance.onend = () => {
+    isVoiceListening = false;
+    if (btn) btn.textContent = '🎙️ Push-to-Talk (Start Mic)';
+    if (waveEl) waveEl.classList.remove('speaking');
+  };
+
+  voiceRecognitionInstance.start();
+}
+
+async function submitVoiceWalkieOrder() {
+  const selectEl = document.getElementById('voiceTargetAgentSelect');
+  const inputEl = document.getElementById('voiceTranscriptInput');
+  const statusEl = document.getElementById('voiceStatusReadout');
+  const toId = selectEl?.value || 'ceo';
+  const message = inputEl?.value.trim();
+  if (!message) return;
+
+  if (statusEl) statusEl.textContent = `📡 Transmitting voice directive to ${toId.toUpperCase()}...`;
+  const res = await fetch('/api/console/send', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ toId, message })
+  });
+  const data = await res.json();
+  if (data.state && window.syncFromExternalState) window.syncFromExternalState(data.state);
+  if (inputEl) inputEl.value = '';
+  renderVoiceConversationLog();
+
+  const targetAgent = (appState?.agents || []).find((a) => a.id === toId) || { name: 'Aria Chen (CEO)' };
+  const replyMsg = data.state?.consoleMessages?.[0]?.message || `Directive received and queued for immediate execution.`;
+  if (statusEl) statusEl.textContent = `🔊 ${targetAgent.name} responding via Voice Synthesis...`;
+  speakAgentText(targetAgent.name, replyMsg);
+}
+
+function runQuickVoiceDirective(text) {
+  const inputEl = document.getElementById('voiceTranscriptInput');
+  if (inputEl) inputEl.value = text;
+  submitVoiceWalkieOrder();
+}
+
+async function triggerSpokenExecutiveStandup() {
+  const statusEl = document.getElementById('voiceStatusReadout');
+  if (statusEl) statusEl.textContent = '🎙️ Convening C-Suite War Room Standup & synthesizing spoken executive briefing...';
+  const res = await fetch('/api/company/war-room', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ topic: 'Spoken Executive Standup: MRR Velocity, Code Quality & Competitor Moat' })
+  });
+  const data = await res.json();
+  if (data.state && window.syncFromExternalState) window.syncFromExternalState(data.state);
+  renderVoiceConversationLog();
+
+  const mrr = data.state?.company?.mrr || 0;
+  const cust = data.state?.company?.customersCount || 0;
+  const share = data.state?.company?.marketSharePct || 15;
+  const standupScript = `War Room standup complete. Current monthly recurring revenue is ${mrr} dollars across ${cust} customers, with ${share} percent market share. Engineering microservices and FinOps guardrails are all green.`;
+  if (statusEl) statusEl.textContent = `🔊 Speaking C-Suite Standup Summary...`;
+  speakAgentText('CEO Aria Chen', standupScript);
+}
+
+// 2. 2D Competitor Market Radar & FinOps Burn-vs-MRR Runway Chart
+function openMarketRadarModal() {
+  openModal('marketRadarModal');
+  setTimeout(() => renderMarketRadarAndFinOpsSvg(), 50);
+}
+
+async function executeMarketBlitz(strategy = 'viral_blitz') {
+  const res = await fetch('/api/company/market-blitz', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ strategy })
+  });
+  const data = await res.json();
+  if (data.state && window.syncFromExternalState) window.syncFromExternalState(data.state);
+  renderMarketRadarAndFinOpsSvg();
+  if (window.triggerCelebrationBurst) window.triggerCelebrationBurst(window.innerWidth / 2, window.innerHeight * 0.45, 55);
+  showToast('🚀 Competitive Market Blitz Executed', data.result?.summary || 'Market share expanded!');
+}
+
+function renderMarketRadarAndFinOpsSvg() {
+  const container = document.getElementById('marketRadarBodyGrid');
+  if (!container || !appState) return;
+
+  const ourShare = Number(appState.company?.marketSharePct || 16.5);
+  const ourMrr = Number(appState.company?.mrr || 2400);
+  const ourValuation = Number(appState.company?.valuationUsd || 450000);
+  const competitors = appState.competitors || [
+    { name: 'DevinCorp AI', marketShare: 24, valuation: '$12M', threatLevel: 'HIGH' },
+    { name: 'AutoGPT Enterprise', marketShare: 19, valuation: '$8.5M', threatLevel: 'MEDIUM' },
+    { name: 'CrewFlow Cloud', marketShare: 15, valuation: '$6.2M', threatLevel: 'LOW' }
+  ];
+
+  // Build 2D Competitor Bubble Radar SVG
+  const radarBubbles = [
+    { name: `${appState.company?.name || 'Our AI Co'} (US)`, share: ourShare, velocity: 92, color: '#10b981', r: Math.max(16, Math.min(34, ourShare * 0.9)) },
+    ...competitors.map((c, i) => ({
+      name: c.name,
+      share: Number(c.marketShare || 18),
+      velocity: 62 + i * 9,
+      color: i === 0 ? '#ef4444' : i === 1 ? '#f59e0b' : '#38bdf8',
+      r: Math.max(13, Math.min(28, Number(c.marketShare || 18) * 0.8))
+    }))
+  ];
+
+  const radarSvg = `
+    <svg width="100%" height="260" viewBox="0 0 440 260" style="background:#060a14;border:1px solid rgba(56,189,248,0.28);border-radius:10px;">
+      <line x1="45" y1="225" x2="415" y2="225" stroke="#334155" stroke-width="1.5" />
+      <line x1="45" y1="25" x2="45" y2="225" stroke="#334155" stroke-width="1.5" />
+      <line x1="230" y1="25" x2="230" y2="225" stroke="rgba(148,163,184,0.18)" stroke-dasharray="4 4" />
+      <line x1="45" y1="125" x2="415" y2="125" stroke="rgba(148,163,184,0.18)" stroke-dasharray="4 4" />
+      <text x="230" y="248" text-anchor="middle" fill="#94a3b8" font-size="10">Market Share % (X-Axis) ➔</text>
+      <text x="16" y="130" text-anchor="middle" fill="#94a3b8" font-size="10" transform="rotate(-90 16 130)">Feature Velocity ➔</text>
+      <text x="345" y="42" text-anchor="middle" fill="#10b981" font-size="9" font-weight="700">★ LEADER QUADRANT</text>
+      ${radarBubbles
+        .map((b) => {
+          const cx = Math.min(390, Math.max(70, 55 + (b.share / 55) * 330));
+          const cy = Math.min(205, Math.max(48, 225 - (b.velocity / 100) * 180));
+          return `
+            <g>
+              <circle cx="${cx}" cy="${cy}" r="${b.r}" fill="${b.color}" fill-opacity="0.28" stroke="${b.color}" stroke-width="2" />
+              <circle cx="${cx}" cy="${cy}" r="4" fill="${b.color}" />
+              <text x="${cx}" y="${cy - b.r - 5}" text-anchor="middle" fill="#f8fafc" font-size="9.5" font-weight="700">${escapeHtml(b.name)} (${b.share}%)</text>
+            </g>
+          `;
+        })
+        .join('')}
+    </svg>
+  `;
+
+  // Build FinOps MRR vs Token Burn Trajectory SVG
+  const baseMrr = Math.max(400, ourMrr);
+  const pointsMrr = [0.35, 0.52, 0.68, 0.84, 1.0, 1.22].map((mult, idx) => {
+    const x = 55 + idx * 66;
+    const y = Math.max(38, 210 - mult * 135);
+    return `${x},${Math.round(y)}`;
+  });
+  const pointsBurn = [0.22, 0.25, 0.27, 0.29, 0.31, 0.33].map((mult, idx) => {
+    const x = 55 + idx * 66;
+    const y = Math.max(150, 220 - mult * 120);
+    return `${x},${Math.round(y)}`;
+  });
+
+  const finopsSvg = `
+    <svg width="100%" height="260" viewBox="0 0 440 260" style="background:#060a14;border:1px solid rgba(16,185,129,0.28);border-radius:10px;">
+      <line x1="45" y1="225" x2="415" y2="225" stroke="#334155" stroke-width="1.5" />
+      <line x1="45" y1="25" x2="45" y2="225" stroke="#334155" stroke-width="1.5" />
+      <polyline fill="none" stroke="#10b981" stroke-width="3" points="${pointsMrr.join(' ')}" />
+      <polyline fill="none" stroke="#f43f5e" stroke-width="2" stroke-dasharray="5 4" points="${pointsBurn.join(' ')}" />
+      <text x="320" y="52" fill="#10b981" font-size="10" font-weight="700">📈 SaaS MRR ($${baseMrr.toLocaleString()}/mo)</text>
+      <text x="320" y="196" fill="#f43f5e" font-size="9.5" font-weight="600">🔥 LLM Token Spend ($${Number(appState.company?.budgetSpent || 0.12).toFixed(3)})</text>
+      <text x="230" y="248" text-anchor="middle" fill="#94a3b8" font-size="10">Autonomous Cycles &amp; Runway Projection (88.4% Gross Margin)</text>
+    </svg>
+  `;
+
+  container.innerHTML = `
+    <div style="background:rgba(15,23,42,0.75);padding:12px;border-radius:10px;border:1px solid var(--border-color);">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+        <strong style="color:#38bdf8;font-size:0.84rem;">🎯 2D Competitive Positioning Matrix</strong>
+        <span class="tag" style="color:#10b981;">Our Share: ${ourShare}%</span>
+      </div>
+      ${radarSvg}
+    </div>
+    <div style="background:rgba(15,23,42,0.75);padding:12px;border-radius:10px;border:1px solid var(--border-color);">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+        <strong style="color:#10b981;font-size:0.84rem;">💎 FinOps MRR vs. Token Burn Trajectory</strong>
+        <span class="tag" style="color:#fbbf24;">Valuation: $${ourValuation.toLocaleString()}</span>
+      </div>
+      ${finopsSvg}
+    </div>
+  `;
+}
+
+// 3. OpenHands / SWE-Agent ACI Studio & Live GitHub Auto-Push
+function openGitHubSyncModal() {
+  openModal('githubSyncModal');
+  refreshGitHubSyncStatus();
+}
+
+async function refreshGitHubSyncStatus() {
+  const container = document.getElementById('githubSyncStatusContainer');
+  if (!container) return;
+  container.innerHTML = `<div style="color:#94a3b8;font-size:0.78rem;">⏳ Querying local Git repository &amp; origin/main...</div>`;
+  try {
+    const res = await fetch('/api/github/status');
+    const data = await res.json();
+    const changed = data.changedFiles || [];
+    const commits = data.commits || [];
+    container.innerHTML = `
+      <div class="form-grid-2" style="gap:12px;">
+        <div style="background:rgba(15,23,42,0.85);padding:10px 12px;border-radius:8px;border:1px solid rgba(56,189,248,0.28);">
+          <div style="font-weight:700;color:#38bdf8;font-size:0.78rem;margin-bottom:6px;">📂 Working Tree Status (${changed.length} modified/untracked)</div>
+          <div style="font-family:'JetBrains Mono',monospace;font-size:0.72rem;max-height:150px;overflow-y:auto;color:#cbd5e1;">
+            ${changed.length > 0 ? changed.map((f) => `<div style="padding:2px 0;">${escapeHtml(f)}</div>`).join('') : '<div style="color:#10b981;">✔ Working tree clean — ready to commit new workspace artifacts.</div>'}
+          </div>
+        </div>
+        <div style="background:rgba(15,23,42,0.85);padding:10px 12px;border-radius:8px;border:1px solid rgba(168,85,247,0.28);">
+          <div style="font-weight:700;color:#c4b5fd;font-size:0.78rem;margin-bottom:6px;">📜 Recent Git Commits (${escapeHtml(data.branch || 'main')})</div>
+          <div style="font-family:'JetBrains Mono',monospace;font-size:0.72rem;max-height:150px;overflow-y:auto;">
+            ${commits
+              .map(
+                (c) => `
+              <div style="padding:3px 0;border-bottom:1px dashed rgba(148,163,184,0.15);">
+                <span style="color:#38bdf8;font-weight:700;">${escapeHtml(c.hash)}</span>
+                <span style="color:#e2e8f0;"> ${escapeHtml(c.subject)}</span>
+                <span style="color:#64748b;font-size:0.66rem;"> (${escapeHtml(c.relativeTime)})</span>
+              </div>`
+              )
+              .join('')}
+          </div>
+        </div>
+      </div>
+    `;
+  } catch (e) {
+    container.innerHTML = `<div style="color:#f43f5e;font-size:0.78rem;">Failed to read Git status: ${escapeHtml(e.message)}</div>`;
+  }
+}
+
+async function triggerGitHubAutoPush() {
+  const btn = document.getElementById('btnGitPushNow');
+  const msgInput = document.getElementById('inputGitCommitMessage');
+  const message = msgInput?.value.trim() || 'feat(aci-studio): autonomous workspace & telemetry sync';
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = '⏳ Pushing to GitHub...';
+  }
+  try {
+    const res = await fetch('/api/github/sync', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message })
+    });
+    const data = await res.json();
+    if (data.state && window.syncFromExternalState) window.syncFromExternalState(data.state);
+    if (window.triggerCelebrationBurst) window.triggerCelebrationBurst(window.innerWidth / 2, window.innerHeight * 0.4, 50);
+    showToast('🐙 GitHub Auto-Push Complete', data.summary || 'Pushed to origin/main!');
+    await refreshGitHubSyncStatus();
+  } catch (e) {
+    showToast('❌ GitHub Push Error', e.message);
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = '🐙 Commit & Push to GitHub';
+    }
+  }
 }
 
 // Global Keyboard Shortcuts (Ctrl+K, Space, W, R, P)

@@ -299,6 +299,10 @@
     const [showBoardAndTools, setShowBoardAndTools] = React.useState(true);
     const [showLiveTerminalDrawer, setShowLiveTerminalDrawer] = React.useState(true);
     const [showLiveProductDrawer, setShowLiveProductDrawer] = React.useState(false);
+    const [showDomAgentOverlay, setShowDomAgentOverlay] = React.useState(true);
+    const [domCursorStep, setDomCursorStep] = React.useState(0);
+    const [mcpPricingArpu, setMcpPricingArpu] = React.useState(99);
+    const [mcpSelectedCta, setMcpSelectedCta] = React.useState('v2');
     const [focusRoomId, setFocusRoomId] = React.useState(null);
     const focusRoomIdRef = React.useRef(null);
     focusRoomIdRef.current = focusRoomId;
@@ -309,6 +313,14 @@
     React.useEffect(() => {
       window.toggleGlobalProductSplit = () => setShowLiveProductDrawer((prev) => !prev);
     }, []);
+
+    React.useEffect(() => {
+      if (!showLiveProductDrawer || !showDomAgentOverlay) return;
+      const timer = setInterval(() => {
+        setDomCursorStep((prev) => (prev + 1) % 5);
+      }, 1600);
+      return () => clearInterval(timer);
+    }, [showLiveProductDrawer, showDomAgentOverlay]);
 
     React.useEffect(() => {
       syncAgentsAndPackets(state);
@@ -1366,16 +1378,30 @@
         )
       ),
 
-      // v12 Live Product Runtime & Synthetic Traffic Swarm Split-Screen Drawer
+      // v12 + v13 Live Product Runtime, Synthetic Traffic Swarm & Browser-Use Visual DOM Agent Split-Screen Drawer
       showLiveProductDrawer && h('div', { className: 'split-product-drawer' },
         h('div', { className: 'split-product-bar' },
           h('div', { style: { display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' } },
-            h('span', { style: { color: '#38bdf8', fontWeight: 800, fontSize: '0.8rem' } }, '🌐 LIVE PRODUCT RUNTIME EMBED (/live-product)'),
+            h('span', { style: { color: '#38bdf8', fontWeight: 800, fontSize: '0.8rem' } }, '🌐 LIVE PRODUCT RUNTIME (/live-product)'),
             h('span', { className: 'tag', style: { color: '#10b981' } }, `💰 MRR: $${(state.company?.mrr || 0).toLocaleString()}/mo`),
             h('span', { className: 'tag', style: { color: '#f59e0b' } }, `👥 Customers: ${state.company?.customersCount || 0}`),
-            h('span', { className: 'sub-hint' }, 'Serving generated HTML funnel + real-time API endpoints')
+            h('span', { className: 'tag', style: { color: '#ec4899' } }, `🖥️ Browser-Use DOM Agent: ${showDomAgentOverlay ? 'SCANNING [1-5]' : 'STANDBY'}`)
           ),
           h('div', { style: { display: 'flex', gap: '6px', flexWrap: 'wrap' } },
+            h('button', {
+              className: `btn btn-sm ${showDomAgentOverlay ? 'btn-primary' : 'btn-outline'}`,
+              onClick: () => setShowDomAgentOverlay((v) => !v)
+            }, showDomAgentOverlay ? '🎯 Hide DOM Boxes' : '🎯 Show DOM Boxes'),
+            h('button', {
+              className: 'btn btn-sm btn-secondary',
+              onClick: async () => {
+                const res = await fetch('/api/product/browser-agent-audit', { method: 'POST' });
+                const d = await res.json();
+                if (d.state && window.syncFromExternalState) window.syncFromExternalState(d.state);
+                if (window.triggerCelebrationBurst) window.triggerCelebrationBurst(window.innerWidth * 0.65, window.innerHeight * 0.55, 50);
+                if (window.showToast) window.showToast('🖥️ Browser-Use Visual CRO Patch', d.result?.summary || 'DOM patched!');
+              }
+            }, '⚡ Visual CRO Auto-Patch (+MRR)'),
             h('button', {
               className: 'btn btn-sm btn-success',
               onClick: async () => {
@@ -1387,31 +1413,123 @@
                 }
                 if (window.showToast) window.showToast('📈 Customer Traffic Swarm', d.traffic?.summary);
               }
-            }, '📈 Simulate Traffic Swarm (+250)'),
+            }, '📈 Traffic Swarm (+250)'),
             h('button', {
               className: 'btn btn-sm btn-secondary',
               onClick: () => {
                 const iframe = document.getElementById('liveProductEmbedIframe');
                 if (iframe) iframe.src = '/live-product?t=' + Date.now();
               }
-            }, '🔄 Reload Frame'),
+            }, '🔄 Reload'),
             h('a', {
               className: 'btn btn-sm btn-outline',
               href: '/live-product',
               target: '_blank',
               rel: 'noopener'
-            }, '↗ Open in New Tab')
+            }, '↗ New Tab')
           )
         ),
-        h('iframe', {
-          id: 'liveProductEmbedIframe',
-          className: 'split-product-iframe',
-          src: '/live-product',
-          title: 'Live Product Runtime'
-        })
+        h('div', { style: { position: 'relative', width: '100%', height: '300px' } },
+          h('iframe', {
+            id: 'liveProductEmbedIframe',
+            className: 'split-product-iframe',
+            src: '/live-product',
+            title: 'Live Product Runtime'
+          }),
+          showDomAgentOverlay && (() => {
+            const domBoxes = [
+              { ref: 1, tag: 'nav.navbar', label: 'Top Trust Nav', left: '6%', top: '5%', width: '88%', height: '14%', color: '#38bdf8' },
+              { ref: 2, tag: 'h1.hero-title', label: 'Hero Value Prop', left: '12%', top: '23%', width: '76%', height: '22%', color: '#a855f7' },
+              { ref: 3, tag: 'button#cta-stripe', label: 'Primary Checkout CTA (CVR 5.8%)', left: '26%', top: '49%', width: '48%', height: '15%', color: '#10b981' },
+              { ref: 4, tag: 'section.pricing-tiers', label: '3-Tier Pricing Anchor', left: '8%', top: '68%', width: '84%', height: '18%', color: '#f59e0b' },
+              { ref: 5, tag: 'footer.soc2-proof', label: 'SOC2 & Telemetry Badge', left: '18%', top: '88%', width: '64%', height: '9%', color: '#ec4899' }
+            ];
+            const activeBox = domBoxes[domCursorStep % domBoxes.length];
+            return h('div', {
+              style: {
+                position: 'absolute',
+                inset: 0,
+                pointerEvents: 'none',
+                overflow: 'hidden',
+                background: 'rgba(6, 10, 20, 0.14)'
+              }
+            },
+              domBoxes.map((b, i) => {
+                const isTarget = i === (domCursorStep % domBoxes.length);
+                return h('div', {
+                  key: b.ref,
+                  style: {
+                    position: 'absolute',
+                    left: b.left,
+                    top: b.top,
+                    width: b.width,
+                    height: b.height,
+                    border: `2px ${isTarget ? 'solid' : 'dashed'} ${b.color}`,
+                    background: isTarget ? 'rgba(16, 185, 129, 0.12)' : 'rgba(15, 23, 42, 0.08)',
+                    borderRadius: '6px',
+                    transition: 'all 0.35s ease',
+                    boxShadow: isTarget ? `0 0 16px ${b.color}` : 'none'
+                  }
+                },
+                  h('span', {
+                    style: {
+                      position: 'absolute',
+                      top: '-10px',
+                      left: '6px',
+                      background: b.color,
+                      color: '#020617',
+                      fontWeight: 800,
+                      fontSize: '0.64rem',
+                      padding: '1px 6px',
+                      borderRadius: '4px',
+                      fontFamily: "'JetBrains Mono', monospace"
+                    }
+                  }, `[${b.ref}] <${b.tag}> ${b.label}`)
+                );
+              }),
+              // Animated Autonomous Browser-Use Agent Cursor
+              h('div', {
+                style: {
+                  position: 'absolute',
+                  left: activeBox.left,
+                  top: activeBox.top,
+                  transform: 'translate(24px, 12px)',
+                  transition: 'all 0.65s cubic-bezier(0.22, 1, 0.36, 1)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  zIndex: 20
+                }
+              },
+                h('div', {
+                  style: {
+                    width: '18px',
+                    height: '18px',
+                    borderRadius: '50%',
+                    background: 'rgba(236, 72, 153, 0.9)',
+                    border: '2px solid #fff',
+                    boxShadow: '0 0 14px #ec4899'
+                  }
+                }),
+                h('span', {
+                  style: {
+                    background: 'rgba(2, 6, 23, 0.92)',
+                    border: '1px solid #ec4899',
+                    color: '#f9a8d4',
+                    fontSize: '0.66rem',
+                    fontWeight: 700,
+                    padding: '2px 8px',
+                    borderRadius: '999px',
+                    fontFamily: "'JetBrains Mono', monospace"
+                  }
+                }, `🤖 Browser-Use Agent auditing [${activeBox.ref}] ${activeBox.tag}`)
+              )
+            );
+          })()
+        )
       ),
 
-      // v10 Collapsible Split-Screen Live MCP JSON-RPC & Self-Healing Terminal Drawer
+      // v10 + v13 Collapsible Split-Screen Live MCP 2026-07-28 ("MCP Apps" + MRTR) & Self-Healing Terminal Drawer
       showLiveTerminalDrawer && h('div', {
         style: {
           background: '#060911',
@@ -1431,36 +1549,36 @@
             gap: '8px'
           }
         },
-          h('div', { style: { display: 'flex', alignItems: 'center', gap: '10px' } },
-            h('span', { style: { color: '#10b981', fontWeight: 800 } }, '● LIVE MCP & A2A TERMINAL STREAM'),
-            h('span', { className: 'tag', style: { fontSize: '0.65rem', color: '#38bdf8' } }, 'JSON-RPC 2.0: POST /api/mcp'),
-            h('span', { className: 'tag', style: { fontSize: '0.65rem', color: '#a855f7' } }, 'Google A2A: /.well-known/agent-card.json'),
-            h('span', { className: 'tag', style: { fontSize: '0.65rem', color: '#10b981' } }, `⚡ Progressive Discovery Saved: ${state.company?.tokensSaved || 0} tok`)
+          h('div', { style: { display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' } },
+            h('span', { style: { color: '#10b981', fontWeight: 800 } }, '● LIVE MCP 2026-07-28 & A2A STREAM'),
+            h('span', { className: 'tag', style: { fontSize: '0.65rem', color: '#38bdf8' } }, 'Stateless JSON-RPC + MCP Apps'),
+            h('span', { className: 'tag', style: { fontSize: '0.65rem', color: '#f472b6' } }, 'MRTR: input_required Ready'),
+            h('span', { className: 'tag', style: { fontSize: '0.65rem', color: '#10b981' } }, `⚡ Saved: ${state.company?.tokensSaved || 0} tok`)
           ),
-          h('div', { style: { display: 'flex', gap: '6px' } },
+          h('div', { style: { display: 'flex', gap: '6px', flexWrap: 'wrap' } },
             h('button', {
               className: 'btn btn-sm btn-secondary',
               style: { fontSize: '0.68rem', padding: '3px 8px' },
               onClick: triggerSelfHealingDebugger
-            }, '🩹 Run Self-Healing AST Debugger'),
+            }, '🩹 Self-Healing AST Debugger'),
+            h('button', {
+              className: 'btn btn-sm btn-secondary',
+              style: { fontSize: '0.68rem', padding: '3px 8px' },
+              onClick: () => window.openGitHubSyncModal && window.openGitHubSyncModal()
+            }, '🐙 OpenHands GitHub Push'),
             h('button', {
               className: 'btn btn-sm btn-secondary',
               style: { fontSize: '0.68rem', padding: '3px 8px' },
               onClick: () => window.openModal && window.openModal('customToolModal')
-            }, '🔌 + Register Custom MCP Tool'),
-            h('button', {
-              className: 'btn btn-sm btn-outline',
-              style: { fontSize: '0.68rem', padding: '3px 8px' },
-              onClick: () => window.switchTab && window.switchTab('workspace')
-            }, '📂 Open Full IDE ➔')
+            }, '🔌 + Custom MCP Tool')
           )
         ),
         h('div', {
           style: {
             display: 'grid',
-            gridTemplateColumns: '1.35fr 1fr',
+            gridTemplateColumns: '1.2fr 1fr 0.9fr',
             gap: '10px',
-            maxHeight: '135px',
+            maxHeight: '145px',
             overflowY: 'auto'
           }
         },
@@ -1482,11 +1600,60 @@
                 h('span', { style: { color: '#64748b' } }, `[${(tl.timestamp || '').slice(11, 19)}] `),
                 h('span', { style: { color: '#38bdf8', fontWeight: 700 } }, `mcp://tools/call/${tl.tool} `),
                 h('span', { style: { color: '#a855f7' } }, `(${tl.agentName}) `),
-                h('span', { style: { color: '#94a3b8' } }, `$ ${tl.command || tl.tool} `),
-                h('div', { style: { color: tl.status === 'SUCCESS' ? '#10b981' : '#f59e0b', paddingLeft: '14px' } },
+                h('div', { style: { color: tl.status === 'SUCCESS' ? '#10b981' : '#f59e0b', paddingLeft: '12px' } },
                   `↳ [${tl.status}] ${tl.output}`
                 )
               )
+            )
+          ),
+          // Middle Pane: Interactive MCP App Widget (MCP 2026-07-28 Spec)
+          h('div', {
+            style: {
+              background: 'rgba(15, 23, 42, 0.9)',
+              border: '1px solid rgba(244, 114, 182, 0.38)',
+              borderRadius: '8px',
+              padding: '8px 10px',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'space-between'
+            }
+          },
+            h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center' } },
+              h('span', { style: { color: '#f472b6', fontWeight: 800, fontSize: '0.69rem' } }, '🧩 MCP APP: FINOPS + MRTR WIDGET'),
+              h('span', { className: 'tag', style: { fontSize: '0.6rem', color: '#38bdf8' } }, 'mcp.apps/render')
+            ),
+            h('div', { style: { margin: '4px 0' } },
+              h('div', { style: { display: 'flex', justifyContent: 'space-between', fontSize: '0.67rem', color: '#cbd5e1' } },
+                h('span', null, `SaaS Seat ARPU: $${mcpPricingArpu}/mo`),
+                h('span', { style: { color: '#10b981', fontWeight: 700 } }, `Proj. ARR: $${(((state.company?.customersCount || 12) * mcpPricingArpu * 12)).toLocaleString()}/yr`)
+              ),
+              h('input', {
+                type: 'range',
+                min: 49,
+                max: 299,
+                value: mcpPricingArpu,
+                onChange: (e) => setMcpPricingArpu(Number(e.target.value)),
+                style: { width: '100%', accentColor: '#f472b6', cursor: 'pointer', marginTop: '3px' }
+              })
+            ),
+            h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '4px' } },
+              h('span', { style: { fontSize: '0.64rem', color: '#fbbf24' } }, 'MRTR CTA Gate:'),
+              h('button', {
+                className: `btn btn-sm ${mcpSelectedCta === 'v1' ? 'btn-primary' : 'btn-outline'}`,
+                style: { fontSize: '0.62rem', padding: '1px 6px' },
+                onClick: () => {
+                  setMcpSelectedCta('v1');
+                  if (window.showToast) window.showToast('🧩 MCP App MRTR Resolved', 'Locked Variant A ("14-Day Free Trial") via MCP 2026-07-28 input_required callback.');
+                }
+              }, 'Var A (4.6%)'),
+              h('button', {
+                className: `btn btn-sm ${mcpSelectedCta === 'v2' ? 'btn-success' : 'btn-outline'}`,
+                style: { fontSize: '0.62rem', padding: '1px 6px' },
+                onClick: () => {
+                  setMcpSelectedCta('v2');
+                  if (window.showToast) window.showToast('🧩 MCP App MRTR Resolved', 'Locked Variant B ("Deploy AI Team in 60s" - 6.4% CVR) via MCP 2026-07-28 callback!');
+                }
+              }, 'Var B (6.4% ★)')
             )
           ),
           // Right Pane: Latest Generated Workspace Artifacts & A2A Handoff Status
@@ -1500,7 +1667,7 @@
             }
           },
             h('div', { style: { color: '#a855f7', fontWeight: 700, marginBottom: '4px', fontSize: '0.7rem' } },
-              `📦 LATEST /WORKSPACE ARTIFACTS (${(state.workspaceFiles || []).length} Files)`
+              `📦 /WORKSPACE ARTIFACTS (${(state.workspaceFiles || []).length} Files)`
             ),
             (state.workspaceFiles || []).slice(0, 5).map((wf, idx) =>
               h('div', {

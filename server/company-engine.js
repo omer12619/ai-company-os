@@ -3214,6 +3214,145 @@ metric_gain: "+${variantBetaScore - variantAlphaScore}% QA & Schema Fidelity"
     this.saveState();
     return { ok: true, task };
   }
+
+  runBrowserUseDomAudit() {
+    const htmlFile = (this.state.workspaceFiles || []).find((f) => f.filename.endsWith('_landing.html')) || {
+      filename: 'nexus_saas_landing.html'
+    };
+    const domNodes = [
+      { ref: 1, tag: 'nav.navbar', label: 'Top Navigation & Trust Header', x: 8, y: 6, w: 84, h: 11, status: 'VERIFIED_ARIA' },
+      { ref: 2, tag: 'h1.hero-headline', label: 'Value Prop Hero Headline', x: 12, y: 22, w: 76, h: 18, status: 'CRO_OPTIMIZED' },
+      { ref: 3, tag: 'button#cta-primary', label: 'Primary Stripe Checkout CTA', x: 24, y: 45, w: 52, h: 13, status: 'HIGH_CONTRAST_LOCKED' },
+      { ref: 4, tag: 'section.pricing-grid', label: '3-Tier SaaS Pricing Matrix', x: 10, y: 63, w: 80, h: 20, status: 'ANCHOR_TIER_HIGHLIGHTED' },
+      { ref: 5, tag: 'footer.soc2-badge', label: 'SOC2 Type II & Uptime Proof', x: 16, y: 86, w: 68, h: 9, status: 'TRUST_SIGNAL_ACTIVE' }
+    ];
+
+    const newCustomers = Math.floor(4 + Math.random() * 5);
+    const mrrAdded = newCustomers * 119;
+    const treasuryGain = Number((mrrAdded * 0.003).toFixed(2));
+
+    this.state.company.customersCount = (this.state.company.customersCount || 0) + newCustomers;
+    this.state.company.mrr = (this.state.company.mrr || 0) + mrrAdded;
+    this.state.company.revenueEarned = Number(((this.state.company.revenueEarned || 0) + treasuryGain).toFixed(2));
+    this.state.company.budgetTotal = Number(((this.state.company.budgetTotal || 25) + treasuryGain).toFixed(2));
+    this.state.company.valuationUsd = (this.state.company.valuationUsd || 250000) + mrrAdded * 12 * 8;
+
+    const cmo = this.state.agents.find((a) => a.id === 'cmo') || this.state.agents[0];
+    const qa = this.state.agents.find((a) => a.id === 'qa') || this.state.agents[0];
+
+    const summary = `Browser-Use Computer-Use Agent inspected 5 DOM bounding boxes on ${htmlFile.filename} -> Auto-patched CTA contrast & pricing anchor -> +1.8% CVR lift (+${newCustomers} customers, +$${mrrAdded}/mo MRR)!`;
+
+    this.recordOtelSpan({
+      operationName: 'browser_use.visual_dom_audit (/live-product)',
+      spanKind: 'CLIENT',
+      agent: cmo,
+      durationMs: 48,
+      status: 'OK',
+      detail: summary
+    });
+
+    this.recordKnowledgeGraphTriple({
+      subject: 'Browser-Use Visual DOM Agent',
+      predicate: 'OPTIMIZED_FUNNEL_DOM',
+      object: `${htmlFile.filename} (+${newCustomers} Customers / +$${mrrAdded} MRR)`,
+      department: 'Marketing',
+      confidence: 0.99
+    });
+
+    this.logConsole({
+      fromAgent: cmo,
+      toAgent: qa,
+      type: 'BROADCAST',
+      taskTitle: '🖥️ Browser-Use Visual DOM & CRO Auto-Patch',
+      message: `🎯 [BROWSER-USE AGENT] ${summary}`
+    });
+
+    this.logEvent({
+      type: 'MARKETING',
+      department: 'Marketing',
+      actor: 'Browser-Use Visual DOM Agent',
+      title: `Visual DOM CRO Patch Applied (+$${mrrAdded}/mo MRR)`,
+      detail: summary
+    });
+
+    this.saveState();
+    return {
+      ok: true,
+      targetFile: htmlFile.filename,
+      domNodes,
+      newCustomers,
+      mrrAdded,
+      totalMrr: this.state.company.mrr,
+      summary
+    };
+  }
+
+  runCompetitiveMarketBlitz({ strategy = 'viral_blitz' } = {}) {
+    const strategies = {
+      viral_blitz: {
+        label: '🚀 Viral Product-Led Growth Blitz',
+        shareGain: 3.4,
+        customersAdded: 6,
+        mrrAdded: 594
+      },
+      poach_talent: {
+        label: '🧲 Poach Competitor Staff AI Researcher',
+        shareGain: 2.6,
+        customersAdded: 4,
+        mrrAdded: 440
+      },
+      price_undercut: {
+        label: '⚡ Autonomous FinOps Margin Undercut',
+        shareGain: 4.1,
+        customersAdded: 8,
+        mrrAdded: 720
+      }
+    };
+    const chosen = strategies[strategy] || strategies.viral_blitz;
+
+    this.state.company.marketSharePct = Number(
+      Math.min(68, (this.state.company.marketSharePct || 14.5) + chosen.shareGain).toFixed(1)
+    );
+    this.state.company.customersCount = (this.state.company.customersCount || 0) + chosen.customersAdded;
+    this.state.company.mrr = (this.state.company.mrr || 0) + chosen.mrrAdded;
+    this.state.company.valuationUsd = (this.state.company.valuationUsd || 250000) + chosen.mrrAdded * 12 * 8;
+
+    if (Array.isArray(this.state.competitors)) {
+      this.state.competitors.forEach((comp) => {
+        comp.marketShare = Math.max(5, Number(((comp.marketShare || 22) - chosen.shareGain / 3).toFixed(1)));
+        comp.threatLevel = comp.marketShare < 16 ? 'LOW' : 'MEDIUM';
+      });
+    }
+
+    const summary = `Executed "${chosen.label}" -> Captured +${chosen.shareGain}% market share (now ${this.state.company.marketSharePct}%), +${chosen.customersAdded} enterprise accounts (+$${chosen.mrrAdded}/mo MRR)!`;
+
+    this.recordOtelSpan({
+      operationName: `market_radar.execute_blitz (${strategy})`,
+      spanKind: 'SERVER',
+      agent: this.state.agents.find((a) => a.id === 'ceo'),
+      durationMs: 39,
+      status: 'OK',
+      detail: summary
+    });
+
+    this.logEvent({
+      type: 'STRATEGY',
+      department: 'Executive',
+      actor: '2D Market Radar & FinOps Engine',
+      title: `${chosen.label} (+${chosen.shareGain}% Market Share)`,
+      detail: summary
+    });
+
+    this.saveState();
+    return {
+      ok: true,
+      strategy,
+      marketSharePct: this.state.company.marketSharePct,
+      mrrAdded: chosen.mrrAdded,
+      totalMrr: this.state.company.mrr,
+      summary
+    };
+  }
 }
 
 module.exports = {

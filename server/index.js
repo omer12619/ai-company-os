@@ -352,8 +352,75 @@ app.post('/api/tasks/edit-state', (req, res) => {
   res.json({ state: engine.state, result });
 });
 
+app.post('/api/product/browser-agent-audit', (req, res) => {
+  const result = engine.runBrowserUseDomAudit();
+  res.json({ state: engine.state, result });
+});
+
+app.post('/api/company/market-blitz', (req, res) => {
+  const result = engine.runCompetitiveMarketBlitz(req.body || {});
+  res.json({ state: engine.state, result });
+});
+
+app.get('/api/github/status', (req, res) => {
+  const { execFileSync } = require('child_process');
+  const rootDir = path.join(__dirname, '..');
+  try {
+    const branch = execFileSync('git', ['rev-parse', '--abbrev-ref', 'HEAD'], { cwd: rootDir, encoding: 'utf8' }).trim();
+    const remoteUrl = execFileSync('git', ['remote', 'get-url', 'origin'], { cwd: rootDir, encoding: 'utf8' }).trim();
+    const statusRaw = execFileSync('git', ['status', '--short'], { cwd: rootDir, encoding: 'utf8' }).trim();
+    const logRaw = execFileSync('git', ['log', '-n', '6', '--pretty=format:%h|%s|%cr'], { cwd: rootDir, encoding: 'utf8' }).trim();
+    const commits = logRaw
+      ? logRaw.split('\n').map((line) => {
+          const [hash, subject, relativeTime] = line.split('|');
+          return { hash, subject, relativeTime };
+        })
+      : [];
+    res.json({
+      ok: true,
+      branch,
+      remoteUrl,
+      changedFiles: statusRaw ? statusRaw.split('\n').filter(Boolean) : [],
+      commits
+    });
+  } catch (err) {
+    res.json({ ok: false, error: err.message, branch: 'main', remoteUrl: 'https://github.com/omer12619/ai-company-os', changedFiles: [], commits: [] });
+  }
+});
+
+app.post('/api/github/sync', (req, res) => {
+  const { execFileSync } = require('child_process');
+  const rootDir = path.join(__dirname, '..');
+  const commitMsg = String(req.body?.message || `feat(aci-studio): autonomous workspace & telemetry sync (${new Date().toISOString().slice(0, 16)})`).slice(0, 120);
+  try {
+    execFileSync('git', ['add', '-A'], { cwd: rootDir, stdio: 'pipe' });
+    const statusAfterAdd = execFileSync('git', ['status', '--porcelain'], { cwd: rootDir, encoding: 'utf8' }).trim();
+    let commitOutput = 'Working tree clean — already up to date with origin/main';
+    if (statusAfterAdd) {
+      commitOutput = execFileSync('git', ['commit', '-m', commitMsg], { cwd: rootDir, encoding: 'utf8' }).trim();
+    }
+    execFileSync('git', ['push', 'origin', 'main'], { cwd: rootDir, stdio: 'pipe', timeout: 15000 });
+    engine.logEvent({
+      type: 'SYSTEM',
+      department: 'Engineering',
+      actor: 'OpenHands ACI GitHub Studio',
+      title: `Pushed Commit to GitHub (omer12619/ai-company-os)`,
+      detail: commitMsg
+    });
+    res.json({
+      ok: true,
+      commitMsg,
+      commitOutput,
+      summary: `Synced & pushed to https://github.com/omer12619/ai-company-os (${commitMsg})`,
+      state: engine.state
+    });
+  } catch (err) {
+    res.status(400).json({ ok: false, error: err.message });
+  }
+});
+
 app.listen(PORT, () => {
   console.log(`\n======================================================`);
-  console.log(`🚀 AI Company OS v12 at: http://localhost:${PORT}`);
+  console.log(`🚀 AI Company OS v13 at: http://localhost:${PORT}`);
   console.log(`======================================================\n`);
 });
