@@ -452,7 +452,7 @@ app.post('/api/github/sync', (req, res) => {
     if (statusAfterAdd) {
       commitOutput = execFileSync('git', ['commit', '-m', commitMsg], { cwd: rootDir, encoding: 'utf8' }).trim();
     }
-    execFileSync('git', ['push', 'origin', 'main'], { cwd: rootDir, stdio: 'pipe', timeout: 15000 });
+    execFileSync('git', ['push', 'origin', 'main'], { cwd: rootDir, stdio: 'pipe', timeout: 45000 });
     engine.logEvent({
       type: 'SYSTEM',
       department: 'Engineering',
