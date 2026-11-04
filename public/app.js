@@ -9,6 +9,9 @@ let pollInterval = null;
 let lastStateHash = '';
 let lastSeenEventId = null;
 let orgViewMode = 'office'; // 'office' | 'cards' | 'graph'
+let activeTabId = 'org'; // 'org' | 'workspace' | 'hermes' | 'console' | 'kanban' | 'finance' | 'github'
+let sseConnected = false;
+window.getActiveTabId = () => activeTabId;
 
 if (window.mermaid) {
   window.mermaid.initialize({ startOnLoad: false, theme: 'dark', securityLevel: 'loose' });
@@ -282,12 +285,19 @@ function renderAll() {
   document.getElementById('kpiSkillsCount').textContent = skillsRegistry.length;
   document.getElementById('tabBadgeSkills').textContent = skillsRegistry.length;
 
-  renderOrgChart(agents, firedAgents, hireQueue);
-  renderMiniConsole(consoleMessages);
-  renderHermesTab(agents, skillsRegistry);
-  renderSharedConsole(consoleMessages, agents);
-  renderKanban(tasks);
-  renderFinance(ledger);
+  // Lazy Tab-Aware DOM Rendering: Only mutate DOM for the active visible tab + global event sidebar!
+  if (activeTabId === 'org') {
+    renderOrgChart(agents, firedAgents, hireQueue);
+    renderMiniConsole(consoleMessages);
+  } else if (activeTabId === 'hermes') {
+    renderHermesTab(agents, skillsRegistry);
+  } else if (activeTabId === 'console') {
+    renderSharedConsole(consoleMessages, agents);
+  } else if (activeTabId === 'kanban') {
+    renderKanban(tasks);
+  } else if (activeTabId === 'finance') {
+    renderFinance(ledger);
+  }
   renderEvents(events);
   renderReactComponents();
 }
@@ -301,57 +311,69 @@ function renderReactComponents() {
   if (!window.React || !window.ReactDOM || !appState) return;
   const h = React.createElement;
 
-  // 0. React 60fps Animated Virtual Office Simulation Component
-  const officeEl = document.getElementById('reactVirtualOfficeRoot');
-  if (officeEl && window.VirtualOfficeComponent) {
-    if (!reactOfficeRoot) reactOfficeRoot = ReactDOM.createRoot(officeEl);
-    reactOfficeRoot.render(h(window.VirtualOfficeComponent, { state: appState }));
+  // 0. React 60fps Animated Virtual Office Simulation Component (only when on Org tab & office mode)
+  if (activeTabId === 'org' && orgViewMode === 'office') {
+    const officeEl = document.getElementById('reactVirtualOfficeRoot');
+    if (officeEl && window.VirtualOfficeComponent) {
+      if (!reactOfficeRoot) reactOfficeRoot = ReactDOM.createRoot(officeEl);
+      reactOfficeRoot.render(h(window.VirtualOfficeComponent, { state: appState }));
+    }
   }
 
-  // 1. React Interactive SVG Node-Graph Component
-  const graphEl = document.getElementById('reactNodeGraphRoot');
-  if (graphEl) {
-    if (!reactGraphRoot) reactGraphRoot = ReactDOM.createRoot(graphEl);
-    reactGraphRoot.render(h(InteractiveOrgGraphComponent, { state: appState }));
+  // 1. React Interactive SVG Node-Graph Component (only when on Org tab & graph mode)
+  if (activeTabId === 'org' && orgViewMode === 'graph') {
+    const graphEl = document.getElementById('reactNodeGraphRoot');
+    if (graphEl) {
+      if (!reactGraphRoot) reactGraphRoot = ReactDOM.createRoot(graphEl);
+      reactGraphRoot.render(h(InteractiveOrgGraphComponent, { state: appState }));
+    }
   }
 
   // 2. React IDE Workspace & Markdown Artifact Explorer Component
-  const wsEl = document.getElementById('reactWorkspaceRoot');
-  if (wsEl) {
-    if (!reactWorkspaceRoot) reactWorkspaceRoot = ReactDOM.createRoot(wsEl);
-    reactWorkspaceRoot.render(h(WorkspaceExplorerComponent, {
-      files: appState.workspaceFiles || [],
-      wiki: appState.memoryWiki || []
-    }));
+  if (activeTabId === 'workspace') {
+    const wsEl = document.getElementById('reactWorkspaceRoot');
+    if (wsEl) {
+      if (!reactWorkspaceRoot) reactWorkspaceRoot = ReactDOM.createRoot(wsEl);
+      reactWorkspaceRoot.render(h(WorkspaceExplorerComponent, {
+        files: appState.workspaceFiles || [],
+        wiki: appState.memoryWiki || []
+      }));
+    }
   }
 
   // 3. React CFO Telemetry & Paperclip Agent Budget Cap Component
-  const finEl = document.getElementById('reactAnalyticsRoot');
-  if (finEl) {
-    if (!reactAnalyticsRoot) reactAnalyticsRoot = ReactDOM.createRoot(finEl);
-    reactAnalyticsRoot.render(h(CFOAnalyticsComponent, { state: appState }));
+  if (activeTabId === 'finance') {
+    const finEl = document.getElementById('reactAnalyticsRoot');
+    if (finEl) {
+      if (!reactAnalyticsRoot) reactAnalyticsRoot = ReactDOM.createRoot(finEl);
+      reactAnalyticsRoot.render(h(CFOAnalyticsComponent, { state: appState }));
+    }
   }
 
   // 4. React GitHub Open-Source Stack & Portable Company Pack Manager
-  const ghEl = document.getElementById('reactGitHubRoot');
-  if (ghEl) {
-    if (!reactGitHubRoot) reactGitHubRoot = ReactDOM.createRoot(ghEl);
-    reactGitHubRoot.render(h(GitHubEcosystemComponent, {
-      repos: githubIntegrations,
-      state: appState
-    }));
+  if (activeTabId === 'github') {
+    const ghEl = document.getElementById('reactGitHubRoot');
+    if (ghEl) {
+      if (!reactGitHubRoot) reactGitHubRoot = ReactDOM.createRoot(ghEl);
+      reactGitHubRoot.render(h(GitHubEcosystemComponent, {
+        repos: githubIntegrations,
+        state: appState
+      }));
+    }
   }
 
   // 5. React Smart Tool & Script Router Studio
-  const trEl = document.getElementById('reactToolRouterRoot');
-  if (trEl) {
-    if (!reactToolRouterRoot) reactToolRouterRoot = ReactDOM.createRoot(trEl);
-    reactToolRouterRoot.render(h(ToolRouterStudioComponent, {
-      tools: toolRegistry,
-      mcpServers: mcpServersCatalog,
-      a2aCards: a2aCardsCatalog,
-      state: appState
-    }));
+  if (activeTabId === 'hermes') {
+    const trEl = document.getElementById('reactToolRouterRoot');
+    if (trEl) {
+      if (!reactToolRouterRoot) reactToolRouterRoot = ReactDOM.createRoot(trEl);
+      reactToolRouterRoot.render(h(ToolRouterStudioComponent, {
+        tools: toolRegistry,
+        mcpServers: mcpServersCatalog,
+        a2aCards: a2aCardsCatalog,
+        state: appState
+      }));
+    }
   }
 }
 
@@ -1523,13 +1545,14 @@ async function stepPipeline() {
 
 // TABS
 function switchTab(tabId) {
+  activeTabId = tabId;
   document.querySelectorAll('.tab-btn').forEach((b) => {
     b.classList.toggle('active', b.dataset.tab === tabId);
   });
   document.querySelectorAll('.tab-content').forEach((c) => {
     c.classList.toggle('active', c.id === `tab-${tabId}`);
   });
-  renderReactComponents();
+  renderAll();
 }
 
 // MODALS
@@ -2163,7 +2186,11 @@ function connectRealTimeStream() {
   if (typeof EventSource === 'undefined') return;
   try {
     const es = new EventSource('/api/stream');
+    es.onopen = () => {
+      sseConnected = true;
+    };
     es.onmessage = (evt) => {
+      sseConnected = true;
       try {
         const parsed = JSON.parse(evt.data);
         if (parsed && parsed.state) {
@@ -2171,7 +2198,11 @@ function connectRealTimeStream() {
         }
       } catch {}
     };
+    es.onerror = () => {
+      sseConnected = false;
+    };
   } catch (e) {
+    sseConnected = false;
     console.warn('SSE fallback to polling:', e);
   }
 }
@@ -3128,4 +3159,8 @@ window.addEventListener('keydown', (evt) => {
 // Initialize & Stream
 fetchState(true);
 connectRealTimeStream();
-pollInterval = setInterval(() => fetchState(false), 2400);
+pollInterval = setInterval(() => {
+  if (!sseConnected && !document.hidden) {
+    fetchState(false);
+  }
+}, 2800);

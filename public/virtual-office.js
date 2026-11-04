@@ -329,18 +329,31 @@
     React.useEffect(() => {
       let rafId;
       let lastTime = performance.now();
+      let lastReactTickTime = 0;
 
       const stepAnim = (now) => {
+        // Pause simulation physics & React ticks when browser tab is hidden or user is viewing another OS tab
+        if (document.hidden || (window.getActiveTabId && window.getActiveTabId() !== 'org')) {
+          lastTime = now;
+          rafId = requestAnimationFrame(stepAnim);
+          return;
+        }
+
         const dt = Math.min(0.05, (now - lastTime) / 1000);
         lastTime = now;
+        let hasActiveMotion = courierPackets.length > 0 || officeRipples.length > 0;
 
         // Smoothly interpolate each person walking across the office floor
-        animAgents.forEach((pos, agentId) => {
-          if (pos.isDragging) return;
+        animAgents.forEach((pos) => {
+          if (pos.isDragging) {
+            hasActiveMotion = true;
+            return;
+          }
           const dx = pos.tx - pos.x;
           const dy = pos.ty - pos.y;
           const dist = Math.hypot(dx, dy);
           if (dist > 1.5) {
+            hasActiveMotion = true;
             const speed = Math.max(50, dist * 3.4);
             pos.x += (dx / dist) * Math.min(dist, speed * dt);
             pos.y += (dy / dist) * Math.min(dist, speed * dt);
@@ -349,10 +362,10 @@
             pos.tiltAngle = Math.max(-10, Math.min(10, (dx / dist) * 7));
             pos.walkPhase += dt * 14;
 
-            // Subtle running dust particle footprints
-            if (Math.random() < 0.28) {
+            // Subtle running dust particle footprints (bounded cap)
+            if (officeParticles.length < 45 && Math.random() < 0.25) {
               officeParticles.push({
-                id: `fp-${Date.now()}-${Math.random()}`,
+                id: `fp-${now}-${Math.random()}`,
                 x: pos.x - (dx / dist) * 6 + (Math.random() - 0.5) * 4,
                 y: pos.y + 16,
                 vx: -(dx / dist) * 5 + (Math.random() - 0.5) * 3,
@@ -373,14 +386,14 @@
           pos.droneAngle += dt * 2.8;
         });
 
-        // Typing spark particles for working agents
-        if (state?.agents) {
+        // Typing spark particles for working agents (bounded cap)
+        if (state?.agents && officeParticles.length < 45) {
           state.agents.forEach((ag) => {
-            if (ag.status === 'working' && Math.random() < 0.18) {
+            if (ag.status === 'working' && Math.random() < 0.14) {
               const p = animAgents.get(ag.id);
               if (p) {
                 officeParticles.push({
-                  id: `spk-${Date.now()}-${Math.random()}`,
+                  id: `spk-${now}-${Math.random()}`,
                   x: p.x + (Math.random() - 0.5) * 20,
                   y: p.y + 8,
                   vx: (Math.random() - 0.5) * 8,
@@ -398,11 +411,11 @@
         // Advance courier packets with trail particles & arrival ripples
         courierPackets.forEach((p) => {
           p.progress += dt * 0.85;
-          if (Math.random() < 0.35) {
+          if (officeParticles.length < 45 && Math.random() < 0.3) {
             const curX = p.x1 + (p.x2 - p.x1) * p.progress;
             const curY = p.y1 + (p.y2 - p.y1) * p.progress - Math.sin(p.progress * Math.PI) * 34;
             officeParticles.push({
-              id: `tr-${Date.now()}-${Math.random()}`,
+              id: `tr-${now}-${Math.random()}`,
               x: curX + (Math.random() - 0.5) * 4,
               y: curY + (Math.random() - 0.5) * 4,
               vx: (Math.random() - 0.5) * 4,
@@ -416,7 +429,7 @@
           if (p.progress >= 1 && !p.rippled) {
             p.rippled = true;
             officeRipples.push({
-              id: `rip-${Date.now()}-${Math.random()}`,
+              id: `rip-${now}-${Math.random()}`,
               x: p.x2,
               y: p.y2,
               r: 5,
@@ -455,18 +468,30 @@
           if (m.y > 580) m.y = 0;
         });
 
-        // Smooth camera glide towards focused room or full office
+        // Smooth 60fps direct SVG camera glide towards focused room or full office
         const targetRoom = OFFICE_ROOMS.find((r) => r.id === focusRoomIdRef.current);
         const targetCam = targetRoom
           ? { x: targetRoom.x - 24, y: targetRoom.y - 18, w: targetRoom.w + 48, h: targetRoom.h + 36 }
           : { x: 0, y: 0, w: 1080, h: 580 };
 
-        camRef.current.x += (targetCam.x - camRef.current.x) * Math.min(1, 4.8 * dt);
-        camRef.current.y += (targetCam.y - camRef.current.y) * Math.min(1, 4.8 * dt);
-        camRef.current.w += (targetCam.w - camRef.current.w) * Math.min(1, 4.8 * dt);
-        camRef.current.h += (targetCam.h - camRef.current.h) * Math.min(1, 4.8 * dt);
+        camRef.current.x += (targetCam.x - camRef.current.x) * Math.min(1, 5.2 * dt);
+        camRef.current.y += (targetCam.y - camRef.current.y) * Math.min(1, 5.2 * dt);
+        camRef.current.w += (targetCam.w - camRef.current.w) * Math.min(1, 5.2 * dt);
+        camRef.current.h += (targetCam.h - camRef.current.h) * Math.min(1, 5.2 * dt);
 
-        setTick((t) => (t + 1) % 1000000);
+        if (svgRef.current) {
+          svgRef.current.setAttribute(
+            'viewBox',
+            `${camRef.current.x.toFixed(1)} ${camRef.current.y.toFixed(1)} ${camRef.current.w.toFixed(1)} ${camRef.current.h.toFixed(1)}`
+          );
+        }
+
+        // Adaptive Frame Pacing: 32ms (~30fps) during active walking/packets, 55ms (~18fps) during stationary ambient idle
+        const minIntervalMs = hasActiveMotion ? 30 : 52;
+        if (now - lastReactTickTime >= minIntervalMs) {
+          lastReactTickTime = now;
+          setTick((t) => (t + 1) % 1000000);
+        }
         rafId = requestAnimationFrame(stepAnim);
       };
 
