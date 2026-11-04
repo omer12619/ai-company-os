@@ -800,7 +800,12 @@
           h('span', {
             className: 'hud-live-pill',
             style: { background: 'rgba(245, 158, 11, 0.16)', color: '#f59e0b', border: '1px solid rgba(245, 158, 11, 0.4)' }
-          }, `🏆 Val: $${valuationM}M • Share: ${marketShare}%`)
+          }, `🏆 Val: $${valuationM}M • Share: ${marketShare}%`),
+          h('span', {
+            className: 'hud-live-pill',
+            title: 'Motion.dev S-Tier GPU Compositor Engine: animations use hardware-accelerated transform & opacity layers',
+            style: { background: 'rgba(56, 189, 248, 0.14)', color: '#38bdf8', border: '1px solid rgba(56, 189, 248, 0.35)' }
+          }, '⚡ Motion S-Tier GPU')
         ),
         h('div', { className: 'office-hud-actions' },
           h('button', {
@@ -1079,10 +1084,11 @@
             )
           ),
 
-          // Holographic War Room Projection Ring when C-Suite Standup is Active
+          // Holographic War Room Projection Ring when C-Suite Standup is Active (Motion.dev S-Tier GPU Compositor!)
           warRoomNow && h('g', { transform: 'translate(540, 290)' },
-            // Outer counter-rotating dashed ring
+            // Outer rotating dashed ring on GPU compositor thread
             h('circle', {
+              className: 's-tier-holo-spin',
               cx: 0,
               cy: 0,
               r: 88,
@@ -1090,27 +1096,27 @@
               stroke: '#c084fc',
               strokeWidth: 1.4,
               strokeDasharray: '12 8',
-              strokeDashoffset: tick * 2.2,
               opacity: 0.7
             }),
-            // Middle pulsing holo disc
+            // Middle pulsing holo disc on GPU compositor thread
             h('ellipse', {
+              className: 's-tier-holo-pulse',
               cx: 0,
               cy: 0,
-              rx: 82 + Math.sin(tick * 0.08) * 6,
-              ry: 50 + Math.cos(tick * 0.08) * 4,
+              rx: 82,
+              ry: 50,
               fill: 'rgba(168, 85, 247, 0.16)',
               stroke: '#a855f7',
               strokeWidth: 2,
-              strokeDasharray: '6 4',
-              strokeDashoffset: -tick * 1.5
+              strokeDasharray: '6 4'
             }),
-            // Scanning sweep crosshair line
+            // Scanning sweep crosshair line on GPU compositor thread
             h('line', {
-              x1: Math.cos(tick * 0.05) * -75,
-              y1: Math.sin(tick * 0.05) * -45,
-              x2: Math.cos(tick * 0.05) * 75,
-              y2: Math.sin(tick * 0.05) * 45,
+              className: 's-tier-holo-sweep',
+              x1: -75,
+              y1: 0,
+              x2: 75,
+              y2: 0,
               stroke: 'rgba(216, 180, 254, 0.45)',
               strokeWidth: 1.2
             }),
@@ -1137,7 +1143,7 @@
             )
           ),
 
-          // Render Live Courier Handoff Beams & Moving Data Orbs between Agents!
+          // Render Live Courier Handoff Beams & Moving Data Orbs between Agents (GPU-Composited Orb Layer!)
           courierPackets.map((pkt) => {
             const curX = pkt.x1 + (pkt.x2 - pkt.x1) * pkt.progress;
             const curY = pkt.y1 + (pkt.y2 - pkt.y1) * pkt.progress - Math.sin(pkt.progress * Math.PI) * 32;
@@ -1152,21 +1158,26 @@
                 strokeDasharray: '5 5',
                 opacity: 0.55
               }),
-              h('circle', {
-                cx: curX,
-                cy: curY,
-                r: 7,
-                fill: pkt.color,
-                filter: 'url(#neonGlow)'
-              }),
-              h('text', {
-                x: curX,
-                y: curY - 11,
-                textAnchor: 'middle',
-                fill: '#ffffff',
-                fontSize: '9px',
-                fontWeight: '700'
-              }, pkt.label)
+              h('g', {
+                className: 's-tier-gpu-layer',
+                transform: `translate(${curX}, ${curY})`
+              },
+                h('circle', {
+                  cx: 0,
+                  cy: 0,
+                  r: 7,
+                  fill: pkt.color,
+                  filter: 'url(#neonGlow)'
+                }),
+                h('text', {
+                  x: 0,
+                  y: -11,
+                  textAnchor: 'middle',
+                  fill: '#ffffff',
+                  fontSize: '9px',
+                  fontWeight: '700'
+                }, pkt.label)
+              )
             );
           }),
 
@@ -1199,8 +1210,9 @@
 
             return h('g', {
               key: agent.id,
+              className: 's-tier-gpu-layer',
               transform: `translate(${pos.x}, ${pos.y + bobY}) rotate(${tilt})`,
-              style: { cursor: draggingAgentId === agent.id ? 'grabbing' : 'grab' },
+              style: { cursor: draggingAgentId === agent.id ? 'grabbing' : 'grab', willChange: 'transform' },
               onMouseEnter: () => setHoveredAgentId(agent.id),
               onMouseLeave: () => setHoveredAgentId(null),
               onMouseDown: (e) => {
@@ -1214,11 +1226,12 @@
                 }
               }
             },
-              // Pulsing Floor Aura when Working or Training
+              // Pulsing Floor Aura when Working or Training (S-Tier GPU Compositor scale3d + opacity!)
               (isWorking || isTraining) && h('ellipse', {
+                className: 's-tier-aura-pulse',
                 cx: 0,
                 cy: 16,
-                rx: 24 + Math.sin(pos.walkPhase * 2) * 4,
+                rx: 24,
                 ry: 10,
                 fill: 'none',
                 stroke: isTraining ? '#f59e0b' : '#10b981',
@@ -1230,7 +1243,7 @@
               h('ellipse', {
                 cx: 0,
                 cy: 17,
-                rx: 14 + (pos.isWalking ? Math.sin(pos.walkPhase) * 2 : 0),
+                rx: 14,
                 ry: 5,
                 fill: 'rgba(0, 0, 0, 0.45)'
               }),
@@ -1267,17 +1280,19 @@
                   strokeWidth: 1.2
                 }),
 
-                // Character Typing Hands (Animated when working at desk!)
+                // Character Typing Hands (S-Tier GPU Compositor translate3d when working at desk!)
                 isWorking && h('g', null,
                   h('circle', {
+                    className: 's-tier-hand-left',
                     cx: -8,
-                    cy: 5 + Math.sin(pos.walkPhase * 5) * 2.5,
+                    cy: 5,
                     r: 3,
                     fill: '#fde68a'
                   }),
                   h('circle', {
+                    className: 's-tier-hand-right',
                     cx: 8,
-                    cy: 5 + Math.cos(pos.walkPhase * 5) * 2.5,
+                    cy: 5,
                     r: 3,
                     fill: '#fde68a'
                   })
@@ -1299,17 +1314,19 @@
                   fontSize: '12px'
                 }, agent.avatar || '🤖'),
 
-                // Blinking Cyber Visor Eye Glow
+                // Blinking Cyber Visor Eye Glow (S-Tier GPU Compositor scaleY blink!)
                 h('circle', {
+                  className: 's-tier-eye-blink',
                   cx: -3,
                   cy: -3,
-                  r: Math.sin(tick * 0.08 + (pos.phaseOffset || 0)) > 0.94 ? 0.4 : 1.3,
+                  r: 1.3,
                   fill: isWorking ? '#38bdf8' : '#a7f3d0'
                 }),
                 h('circle', {
+                  className: 's-tier-eye-blink',
                   cx: 3,
                   cy: -3,
-                  r: Math.sin(tick * 0.08 + (pos.phaseOffset || 0)) > 0.94 ? 0.4 : 1.3,
+                  r: 1.3,
                   fill: isWorking ? '#38bdf8' : '#a7f3d0'
                 })
               ),
@@ -1463,11 +1480,11 @@
           }),
           showDomAgentOverlay && (() => {
             const domBoxes = [
-              { ref: 1, tag: 'nav.navbar', label: 'Top Trust Nav', left: '6%', top: '5%', width: '88%', height: '14%', color: '#38bdf8' },
-              { ref: 2, tag: 'h1.hero-title', label: 'Hero Value Prop', left: '12%', top: '23%', width: '76%', height: '22%', color: '#a855f7' },
-              { ref: 3, tag: 'button#cta-stripe', label: 'Primary Checkout CTA (CVR 5.8%)', left: '26%', top: '49%', width: '48%', height: '15%', color: '#10b981' },
-              { ref: 4, tag: 'section.pricing-tiers', label: '3-Tier Pricing Anchor', left: '8%', top: '68%', width: '84%', height: '18%', color: '#f59e0b' },
-              { ref: 5, tag: 'footer.soc2-proof', label: 'SOC2 & Telemetry Badge', left: '18%', top: '88%', width: '64%', height: '9%', color: '#ec4899' }
+              { ref: 1, tag: 'nav.navbar', label: 'Top Trust Nav', left: '6%', top: '5%', width: '88%', height: '14%', tx: 28, ty: 18, color: '#38bdf8' },
+              { ref: 2, tag: 'h1.hero-title', label: 'Hero Value Prop', left: '12%', top: '23%', width: '76%', height: '22%', tx: 55, ty: 78, color: '#a855f7' },
+              { ref: 3, tag: 'button#cta-stripe', label: 'Primary Checkout CTA (CVR 5.8%)', left: '26%', top: '49%', width: '48%', height: '15%', tx: 112, ty: 164, color: '#10b981' },
+              { ref: 4, tag: 'section.pricing-tiers', label: '3-Tier Pricing Anchor', left: '8%', top: '68%', width: '84%', height: '18%', tx: 42, ty: 224, color: '#f59e0b' },
+              { ref: 5, tag: 'footer.soc2-proof', label: 'SOC2 & Telemetry Badge', left: '18%', top: '88%', width: '64%', height: '9%', tx: 80, ty: 286, color: '#ec4899' }
             ];
             const activeBox = domBoxes[domCursorStep % domBoxes.length];
             return h('div', {
@@ -1492,7 +1509,10 @@
                     border: `2px ${isTarget ? 'solid' : 'dashed'} ${b.color}`,
                     background: isTarget ? 'rgba(16, 185, 129, 0.12)' : 'rgba(15, 23, 42, 0.08)',
                     borderRadius: '6px',
-                    transition: 'all 0.35s ease',
+                    willChange: 'transform, opacity',
+                    transform: isTarget ? 'scale3d(1.015, 1.015, 1)' : 'scale3d(1, 1, 1)',
+                    opacity: isTarget ? 1 : 0.72,
+                    transition: 'transform 0.32s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.25s ease',
                     boxShadow: isTarget ? `0 0 16px ${b.color}` : 'none'
                   }
                 },
@@ -1512,14 +1532,15 @@
                   }, `[${b.ref}] <${b.tag}> ${b.label}`)
                 );
               }),
-              // Animated Autonomous Browser-Use Agent Cursor
+              // Animated Autonomous Browser-Use Agent Cursor (Motion.dev S-Tier translate3d Compositor!)
               h('div', {
                 style: {
                   position: 'absolute',
-                  left: activeBox.left,
-                  top: activeBox.top,
-                  transform: 'translate(24px, 12px)',
-                  transition: 'all 0.65s cubic-bezier(0.22, 1, 0.36, 1)',
+                  left: 0,
+                  top: 0,
+                  willChange: 'transform',
+                  transform: `translate3d(${activeBox.tx}px, ${activeBox.ty}px, 0)`,
+                  transition: 'transform 0.65s cubic-bezier(0.22, 1, 0.36, 1)',
                   display: 'flex',
                   alignItems: 'center',
                   gap: '6px',

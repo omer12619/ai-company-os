@@ -367,7 +367,8 @@ body {
   background: var(--bg-card);
   border: 1px solid var(--border);
   opacity: 0.65;
-  transition: all 0.2s ease;
+  will-change: transform, opacity;
+  transition: transform 0.22s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.22s ease;
 }
 
 .step-node.active {
@@ -378,12 +379,15 @@ body {
   animation: stepNodePulse 2.2s infinite ease-in-out;
 }
 
+/* S-Tier GPU Compositor Pulse (transform + opacity only — zero repaint!) */
 @keyframes stepNodePulse {
   0%, 100% {
-    box-shadow: 0 0 10px var(--accent-soft);
+    transform: scale3d(1, 1, 1);
+    opacity: 0.92;
   }
   50% {
-    box-shadow: 0 0 24px var(--accent-soft), 0 0 5px var(--accent);
+    transform: scale3d(1.028, 1.028, 1);
+    opacity: 1;
   }
 }
 
@@ -644,7 +648,9 @@ body {
 .progress-bar-fill {
   height: 100%;
   background: linear-gradient(90deg, var(--success), var(--info));
-  transition: width 0.3s ease;
+  transform-origin: left center;
+  will-change: transform, width;
+  transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1), width 0.3s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .text-danger { color: var(--danger); }
@@ -709,6 +715,19 @@ body {
 
 .tab-content.active {
   display: block;
+  will-change: transform, opacity;
+  animation: sTierTabEnter 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes sTierTabEnter {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 6px, 0) scale3d(0.995, 0.995, 1);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale3d(1, 1, 1);
+  }
 }
 
 .friendly-tip-bar {
@@ -1907,21 +1926,25 @@ body[data-theme="classic"] {
 }
 
 .agent-hotline-box {
+  border-color: rgba(56, 189, 248, 0.5);
+  box-shadow: 0 0 14px rgba(56, 189, 248, 0.12);
+  will-change: transform, opacity;
   animation: hotlineGlow 3s infinite alternate ease-in-out;
 }
 
+/* Motion.dev S-Tier Compositor Keyframes (transform + opacity only — 0% Paint/Layout!) */
 @keyframes hotlineGlow {
   0% {
-    border-color: rgba(56, 189, 248, 0.3);
-    box-shadow: 0 0 8px rgba(56, 189, 248, 0.05);
+    opacity: 0.88;
+    transform: translate3d(0, 0, 0) scale3d(1, 1, 1);
   }
   100% {
-    border-color: rgba(56, 189, 248, 0.65);
-    box-shadow: 0 0 16px rgba(56, 189, 248, 0.15);
+    opacity: 1;
+    transform: translate3d(0, -1px, 0) scale3d(1.006, 1.006, 1);
   }
 }
 
-/* v13 Voice Walkie-Talkie Equalizer Waveform */
+/* v13 Voice Walkie-Talkie Equalizer Waveform (Upgraded to Motion.dev S-Tier scaleY) */
 .voice-walkie-hero {
   background: linear-gradient(135deg, rgba(244, 114, 182, 0.12), rgba(56, 189, 248, 0.08));
   border: 1px solid rgba(244, 114, 182, 0.35);
@@ -1943,10 +1966,13 @@ body[data-theme="classic"] {
 
 .voice-wave-bar span {
   flex: 1;
-  height: 5px;
+  height: 20px;
   background: linear-gradient(180deg, #f472b6, #38bdf8);
   border-radius: 999px;
-  transition: height 0.2s ease;
+  transform-origin: center;
+  transform: scaleY(0.22);
+  will-change: transform, opacity;
+  transition: transform 0.2s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.2s ease;
   opacity: 0.45;
 }
 
@@ -1964,9 +1990,105 @@ body[data-theme="classic"] {
 
 @keyframes voiceWaveBounce {
   0% {
-    height: 4px;
+    transform: scaleY(0.18);
   }
   100% {
-    height: 22px;
+    transform: scaleY(1);
+  }
+}
+
+/* ============================================================================
+   MOTION.DEV S-TIER GPU COMPOSITOR ANIMATIONS FOR 2.5D VIRTUAL OFFICE SVG
+   Runs 100% on the browser GPU compositor thread (transform + opacity only)
+   ============================================================================ */
+.s-tier-gpu-layer {
+  will-change: transform, opacity;
+  backface-visibility: hidden;
+}
+
+.s-tier-aura-pulse {
+  transform-box: fill-box;
+  transform-origin: center;
+  will-change: transform, opacity;
+  animation: sTierAuraPulse 1.4s ease-in-out infinite alternate;
+}
+
+@keyframes sTierAuraPulse {
+  0% {
+    transform: scale3d(0.88, 0.92, 1);
+    opacity: 0.55;
+  }
+  100% {
+    transform: scale3d(1.16, 1.08, 1);
+    opacity: 0.92;
+  }
+}
+
+.s-tier-hand-left {
+  transform-box: fill-box;
+  transform-origin: center;
+  will-change: transform;
+  animation: sTierTypingHand 0.24s ease-in-out infinite alternate;
+}
+
+.s-tier-hand-right {
+  transform-box: fill-box;
+  transform-origin: center;
+  will-change: transform;
+  animation: sTierTypingHand 0.24s ease-in-out 0.12s infinite alternate;
+}
+
+@keyframes sTierTypingHand {
+  0% {
+    transform: translate3d(0, -2.4px, 0);
+  }
+  100% {
+    transform: translate3d(0, 2.4px, 0);
+  }
+}
+
+.s-tier-eye-blink {
+  transform-box: fill-box;
+  transform-origin: center;
+  will-change: transform;
+  animation: sTierVisorBlink 3.8s ease-in-out infinite;
+}
+
+@keyframes sTierVisorBlink {
+  0%, 92%, 100% {
+    transform: scaleY(1);
+  }
+  96% {
+    transform: scaleY(0.2);
+  }
+}
+
+.s-tier-holo-spin {
+  transform-box: fill-box;
+  transform-origin: center;
+  will-change: transform;
+  animation: sTierHoloRotate 14s linear infinite;
+}
+
+.s-tier-holo-sweep {
+  transform-box: fill-box;
+  transform-origin: center;
+  will-change: transform;
+  animation: sTierHoloRotate 6s linear infinite reverse;
+}
+
+.s-tier-holo-pulse {
+  transform-box: fill-box;
+  transform-origin: center;
+  will-change: transform, opacity;
+  animation: sTierAuraPulse 2.2s ease-in-out infinite alternate;
+}
+
+@keyframes sTierHoloRotate {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
   }
 }

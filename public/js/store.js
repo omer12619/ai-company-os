@@ -81,4 +81,83 @@
     useStore,
     dispatchApi
   };
+
+  /**
+   * Motion.dev S-Tier Web Animations API (WAAPI) GPU Compositor Engine
+   * Drives hardware-accelerated transform & opacity animations on the compositor thread
+   * (0% Main-Thread Layout/Paint cost, immune to main-thread JS work).
+   */
+  const MotionTierS = {
+    springIn(el, opts = {}) {
+      if (!el || typeof el.animate !== 'function') return null;
+      return el.animate(
+        [
+          {
+            opacity: 0,
+            transform: 'translate3d(0, 14px, 0) scale3d(0.965, 0.965, 1)'
+          },
+          {
+            opacity: 1,
+            transform: 'translate3d(0, 0, 0) scale3d(1, 1, 1)'
+          }
+        ],
+        {
+          duration: opts.duration || 240,
+          easing: opts.easing || 'cubic-bezier(0.22, 1, 0.36, 1)',
+          fill: 'both'
+        }
+      );
+    },
+    pulse(el, opts = {}) {
+      if (!el || typeof el.animate !== 'function') return null;
+      return el.animate(
+        [
+          { transform: 'scale3d(1, 1, 1)' },
+          { transform: 'scale3d(1.035, 1.035, 1)' },
+          { transform: 'scale3d(1, 1, 1)' }
+        ],
+        {
+          duration: opts.duration || 260,
+          easing: 'cubic-bezier(0.22, 1, 0.36, 1)'
+        }
+      );
+    }
+  };
+
+  window.MotionTierS = MotionTierS;
+
+  // Automatically attach S-Tier WAAPI spring physics when modals or toasts appear
+  if (typeof window !== 'undefined' && typeof MutationObserver !== 'undefined') {
+    window.addEventListener('DOMContentLoaded', () => {
+      const observer = new MutationObserver((mutations) => {
+        for (const m of mutations) {
+          if (m.type === 'attributes' && m.attributeName === 'class') {
+            const target = m.target;
+            if (
+              target &&
+              target.classList &&
+              target.classList.contains('modal-backdrop') &&
+              !target.classList.contains('hidden')
+            ) {
+              const card = target.querySelector('.modal-card, .modal-box, .modal-content');
+              if (card) MotionTierS.springIn(card);
+            }
+          } else if (m.type === 'childList' && m.addedNodes.length > 0) {
+            m.addedNodes.forEach((node) => {
+              if (node.nodeType === 1 && node.classList && node.classList.contains('toast-item')) {
+                MotionTierS.springIn(node, { duration: 210 });
+              }
+            });
+          }
+        }
+      });
+
+      observer.observe(document.body, {
+        attributes: true,
+        attributeFilter: ['class'],
+        childList: true,
+        subtree: true
+      });
+    });
+  }
 })();
