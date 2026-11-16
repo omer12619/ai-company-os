@@ -25,9 +25,17 @@ const engine = new CompanyEngine();
 
 const asyncHandler = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
 const safeState = () => engine.sanitizeStateForClient(engine.state);
+const escapeHtml = (str) =>
+  String(str ?? '').replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
 
 app.use(cors());
 app.use(express.json({ limit: '5mb' }));
+app.use((req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+  res.setHeader('Referrer-Policy', 'no-referrer');
+  next();
+});
 
 // Built-in Zero-Dependency Gzip Compression for JSON API payloads (>1.5KB)
 app.use((req, res, next) => {
@@ -358,7 +366,7 @@ app.get('/live-product', (req, res) => {
   res.setHeader('Content-Type', 'text/html; charset=utf-8');
   const rawHtml =
     html?.content ||
-    `<!DOCTYPE html><html><body style="background:#090d16;color:#e2e8f0;font-family:sans-serif;text-align:center;padding:60px"><h1>${engine.state.company.name}</h1><p>No landing page generated yet — run a Marketing pipeline step.</p></body></html>`;
+    `<!DOCTYPE html><html><body style="background:#090d16;color:#e2e8f0;font-family:sans-serif;text-align:center;padding:60px"><h1>${escapeHtml(engine.state.company.name)}</h1><p>No landing page generated yet — run a Marketing pipeline step.</p></body></html>`;
 
   const interactiveWidget = `
   <!-- AI Company OS Live Product Runtime Telemetry & Interactive Stripe Checkout Bar -->
@@ -367,7 +375,7 @@ app.get('/live-product', (req, res) => {
       <span style="color:#10b981;font-weight:800;">● LIVE RUNTIME</span>
       <span id="lpMrrBadge" style="background:rgba(16,185,129,0.15);color:#34d399;padding:2px 8px;border-radius:999px;font-weight:700;">MRR: $${(engine.state.company.mrr || 0).toLocaleString()}/mo</span>
       <span id="lpCustBadge" style="background:rgba(56,189,248,0.15);color:#38bdf8;padding:2px 8px;border-radius:999px;font-weight:700;">Customers: ${engine.state.company.customersCount || 0}</span>
-      <span style="color:#94a3b8;font-size:11px;">Source: ${html?.filename || 'default_funnel.html'}</span>
+      <span style="color:#94a3b8;font-size:11px;">Source: ${escapeHtml(html?.filename || 'default_funnel.html')}</span>
     </div>
     <div style="display:flex;gap:8px;">
       <button onclick="window.triggerLiveCheckout()" style="background:linear-gradient(135deg,#10b981,#059669);color:#fff;border:none;border-radius:6px;padding:5px 12px;font-weight:700;font-size:11.5px;cursor:pointer;">💳 Test Live Customer Checkout (+MRR)</button>

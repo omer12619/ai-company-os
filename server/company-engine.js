@@ -2012,8 +2012,9 @@ ${task.deliverable}`;
 
   saveWorkspaceFileContent({ filename, content }) {
     if (!filename || typeof content !== 'string') return null;
+    const safeName = filename.replace(/[^a-zA-Z0-9._-]/g, '_');
     this.writeWorkspaceArtifact({
-      filename,
+      filename: safeName,
       department: 'Founder Co-Edit',
       author: 'Founder (Human-in-the-Loop)',
       content
@@ -2022,11 +2023,11 @@ ${task.deliverable}`;
       type: 'SYSTEM',
       department: 'Executive',
       actor: 'Founder',
-      title: `Edited & Saved Workspace File: ${filename}`,
-      detail: `${Buffer.byteLength(content, 'utf8')} bytes written to /workspace/${filename}`
+      title: `Edited & Saved Workspace File: ${safeName}`,
+      detail: `${Buffer.byteLength(content, 'utf8')} bytes written to /workspace/${safeName}`
     });
     this.saveState();
-    return this.state.workspaceFiles.find((f) => f.filename === filename);
+    return this.state.workspaceFiles.find((f) => f.filename === safeName);
   }
 
   async runWarRoomStandup({ topic } = {}) {
