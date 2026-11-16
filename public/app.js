@@ -1435,6 +1435,14 @@ function connectRealTimeStream() {
         }
       } catch {}
     };
+    es.addEventListener('llm_delta', (evt) => {
+      try {
+        const chunk = JSON.parse(evt.data);
+        if (window.CompanyStore && chunk) {
+          window.CompanyStore.setState({ streamingOutput: chunk });
+        }
+      } catch {}
+    });
     es.onerror = () => {
       sseConnected = false;
     };

@@ -2,6 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const { PROVIDERS, callLLM } = require('./llm-router');
 const { retrieveContext } = require('./rag-retriever');
+const { ValidationError } = require('./validators');
 const {
   MCP_SERVERS,
   TOOL_REGISTRY,
@@ -96,6 +97,40 @@ class CompanyEngine {
     } catch (e) {
       console.error('Failed to flush state on shutdown:', e.message);
     }
+  }
+
+  broadcastSSEEvent(eventName, payloadObj) {
+    if (!this.sseClients || this.sseClients.size === 0) return;
+    const frame = `event: ${eventName}\ndata: ${JSON.stringify(payloadObj)}\n\n`;
+    for (const client of this.sseClients) {
+      try {
+        client.write(frame);
+      } catch {
+        this.sseClients.delete(client);
+      }
+    }
+  }
+
+  loadAgentsRules() {
+    const now = Date.now();
+    if (this._agentsRulesCache && now - this._agentsRulesCacheAt < 5000) {
+      return this._agentsRulesCache;
+    }
+    const candidates = [
+      path.join(WORKSPACE_DIR, 'AGENTS.md'),
+      path.join(__dirname, '..', 'AGENTS.md')
+    ];
+    for (const file of candidates) {
+      try {
+        if (fs.existsSync(file)) {
+          const text = fs.readFileSync(file, 'utf8').slice(0, 1400);
+          this._agentsRulesCache = text;
+          this._agentsRulesCacheAt = now;
+          return text;
+        }
+      } catch {}
+    }
+    return '';
   }
 
   broadcastSSE() {
@@ -1142,12 +1177,29 @@ ${rag.formattedContext || 'No prior matching workspace chunks.'}
 </retrieved_context>
 Learned SOPs: ${(agent.sops || []).join(' | ')}`;
 
+    const agentsConstitution = this.loadAgentsRules();
+    const budgetTotal = Number(this.state.company?.budgetTotal) || 25;
+    const budgetSpent = Number(this.state.company?.budgetSpent) || 0;
+    const budgetRemainingRatio = Math.max(0, (budgetTotal - budgetSpent) / budgetTotal);
+
     const llmRes = await callLLM({
       providerConfig: this.state.providerConfig,
       agent,
-      systemPrompt: `${agent.systemPrompt}\n\nActive SOPs:\n${(agent.sops || []).join('\n')}`,
+      systemPrompt: `${agent.systemPrompt}${agentsConstitution ? `\n\n<agents_md_constitution>\n${agentsConstitution}\n</agents_md_constitution>` : ''}\n\nActive SOPs:\n${(agent.sops || []).join('\n')}`,
       userPrompt,
-      jsonMode: false
+      jsonMode: false,
+      taskAttempts: task.attempts || 1,
+      budgetRemainingRatio,
+      onTokenDelta: (delta, meta) => {
+        this.broadcastSSEEvent('llm_delta', {
+          agentId: agent.id,
+          agentName: agent.name,
+          taskTitle: task.title,
+          delta,
+          done: Boolean(meta?.done),
+          timestamp: new Date().toISOString()
+        });
+      }
     });
 
     this.recordLedger({
@@ -1948,17 +2000,32 @@ ${task.deliverable}`;
     return newTask;
   }
 
-  resolveBoardProposal({ proposalId, decision }) {
+  resolveBoardProposal({ proposalId, decision, budgetCapOverride, founderNote } = {}) {
     this.state.boardInbox = this.state.boardInbox || [];
     const prop = this.state.boardInbox.find((p) => p.id === proposalId);
     if (!prop) return null;
+
+    const allowedDecisions = prop.responseSchema?.decision?.options || ['approve', 'veto'];
+    if (!allowedDecisions.includes(decision)) {
+      throw new ValidationError(`Typed HITL decision must be one of: ${allowedDecisions.join(', ')}.`);
+    }
+    if (budgetCapOverride !== undefined && budgetCapOverride !== null && budgetCapOverride !== '') {
+      const cap = Number(budgetCapOverride);
+      if (!Number.isFinite(cap) || cap < 1 || cap > 100000) {
+        throw new ValidationError('Typed HITL "budgetCapOverride" must be a finite number between 1 and 100000.');
+      }
+      prop.budgetCapOverride = cap;
+    }
+    if (typeof founderNote === 'string' && founderNote.trim()) {
+      prop.founderNote = founderNote.trim().slice(0, 240);
+    }
 
     prop.status = decision === 'approve' ? 'approved' : 'vetoed';
     prop.resolvedAt = new Date().toISOString();
 
     if (decision === 'approve') {
       if (prop.type === 'BUDGET_INCREASE' || prop.type === 'BUDGET_EXPANSION') {
-        const addAmt = Number(prop.payload?.amount || prop.payload?.addBudget) || 10.0;
+        const addAmt = prop.budgetCapOverride || Number(prop.payload?.amount || prop.payload?.addBudget) || 10.0;
         this.state.company.budgetTotal = Number((this.state.company.budgetTotal + addAmt).toFixed(2));
         this.logEvent({
           type: 'FINANCE',
@@ -2157,6 +2224,11 @@ ${task.deliverable}`;
         role: 'Principal Autonomous Systems Architect',
         department: 'Engineering',
         reportsTo: 'cto'
+      },
+      responseSchema: {
+        decision: { type: 'enum', options: ['approve', 'veto'] },
+        budgetCapOverride: { type: 'number', min: 1, max: 100000 },
+        founderNote: { type: 'string', maxLength: 240 }
       },
       status: 'pending',
       createdAt: new Date().toISOString()

@@ -225,8 +225,8 @@ app.post('/api/console/message', asyncHandler(async (req, res) => {
 }));
 
 app.post('/api/board/resolve', (req, res) => {
-  const { proposalId, decision } = req.body;
-  engine.resolveBoardProposal({ proposalId, decision });
+  const { proposalId, decision, budgetCapOverride, founderNote } = req.body || {};
+  engine.resolveBoardProposal({ proposalId, decision, budgetCapOverride, founderNote });
   res.json({ state: safeState() });
 });
 

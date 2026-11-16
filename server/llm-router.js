@@ -119,16 +119,60 @@ function calculateCost(provider, promptTokens, completionTokens) {
   return Number(Math.max(0.0015, cost * 22).toFixed(4));
 }
 
-async function callLLM({ providerConfig, agent, systemPrompt, userPrompt, jsonMode = false, useCache = false }) {
+const ESCALATION_MODEL_MAP = {
+  openai: { economy: 'gpt-4o-mini', flagship: 'gpt-4o' },
+  anthropic: { economy: 'claude-3-5-haiku-latest', flagship: 'claude-3-7-sonnet-latest' },
+  gemini: { economy: 'gemini-2.5-flash', flagship: 'gemini-2.5-pro' },
+  groq: { economy: 'llama-3.1-8b-instant', flagship: 'llama-3.3-70b-versatile' },
+  deepseek: { economy: 'deepseek-chat', flagship: 'deepseek-reasoner' },
+  openrouter: { economy: 'openai/gpt-4o-mini', flagship: 'anthropic/claude-3.7-sonnet' }
+};
+
+/**
+ * Smart Model Arbitrage:
+ * - Escalate to flagship model when a task is on QA retry (taskAttempts >= 2) and budget allows.
+ * - Downshift to economy model when remaining budget ratio <= 15%.
+ */
+function selectArbitrageModel({ activeProvider, configuredModel, taskAttempts = 1, budgetRemainingRatio = 1 }) {
+  const tierMap = ESCALATION_MODEL_MAP[activeProvider];
+  if (!tierMap) {
+    return { model: configuredModel, arbitrageTier: 'standard' };
+  }
+  if (budgetRemainingRatio <= 0.15) {
+    return { model: tierMap.economy, arbitrageTier: 'economy' };
+  }
+  if (taskAttempts >= 2) {
+    return { model: tierMap.flagship, arbitrageTier: 'escalated' };
+  }
+  return { model: configuredModel, arbitrageTier: 'standard' };
+}
+
+async function callLLM({
+  providerConfig,
+  agent,
+  systemPrompt,
+  userPrompt,
+  jsonMode = false,
+  useCache = false,
+  taskAttempts = 1,
+  budgetRemainingRatio = 1,
+  onTokenDelta = null
+}) {
   // Respect per-agent provider & model override if configured on this specific worker
   const activeProvider = (agent?.providerOverride && agent.providerOverride !== 'inherit')
     ? agent.providerOverride
     : (providerConfig?.activeProvider || 'simulator');
 
   const settings = providerConfig?.providers?.[activeProvider] || {};
-  const model = (agent?.modelOverride && agent.modelOverride.trim())
+  const baseModel = (agent?.modelOverride && agent.modelOverride.trim())
     ? agent.modelOverride.trim()
     : (settings.model || PROVIDERS[activeProvider]?.defaultModel || 'gpt-4o-mini');
+  const { model, arbitrageTier } = selectArbitrageModel({
+    activeProvider,
+    configuredModel: baseModel,
+    taskAttempts,
+    budgetRemainingRatio
+  });
 
   const temperature = typeof agent?.temperature === 'number' ? agent.temperature : 0.7;
   const apiKey = settings.apiKey || process.env[`${activeProvider.toUpperCase()}_API_KEY`] || '';
@@ -145,7 +189,7 @@ async function callLLM({ providerConfig, agent, systemPrompt, userPrompt, jsonMo
   }
 
   if (PROVIDERS[activeProvider]?.requiresKey && !apiKey) {
-    return runSimulator({
+    const sim = runSimulator({
       agent,
       systemPrompt: compressedSys,
       userPrompt: compressedUser,
@@ -153,10 +197,18 @@ async function callLLM({ providerConfig, agent, systemPrompt, userPrompt, jsonMo
       tokensSaved,
       fallbackNotice: `No API key set for ${activeProvider}; used Autonomous Simulator.`
     });
+    if (typeof onTokenDelta === 'function' && sim.content) {
+      onTokenDelta(sim.content.slice(0, 180), { done: true });
+    }
+    return { ...sim, arbitrageTier };
   }
 
   if (activeProvider === 'simulator') {
-    return runSimulator({ agent, systemPrompt: compressedSys, userPrompt: compressedUser, jsonMode, tokensSaved });
+    const sim = runSimulator({ agent, systemPrompt: compressedSys, userPrompt: compressedUser, jsonMode, tokensSaved });
+    if (typeof onTokenDelta === 'function' && sim.content) {
+      onTokenDelta(sim.content.slice(0, 180), { done: true });
+    }
+    return { ...sim, arbitrageTier };
   }
 
   try {
@@ -257,12 +309,16 @@ async function callLLM({ providerConfig, agent, systemPrompt, userPrompt, jsonMo
       content,
       provider: activeProvider,
       model,
+      arbitrageTier,
       promptTokens,
       completionTokens,
       totalTokens: promptTokens + completionTokens,
       tokensSaved,
       cost
     };
+    if (typeof onTokenDelta === 'function' && content) {
+      onTokenDelta(content.slice(0, 180), { done: true });
+    }
 
     if (responseCache.size >= MAX_CACHE_ENTRIES) {
       const oldestKey = responseCache.keys().next().value;
@@ -609,5 +665,6 @@ async function testProviderConnection({ providerKey = 'simulator', model = '', a
 module.exports = {
   PROVIDERS,
   callLLM,
+  selectArbitrageModel,
   testProviderConnection
 };

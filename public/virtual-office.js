@@ -1753,7 +1753,7 @@
             h('span', { style: { fontSize: '0.75rem', fontWeight: 800, color: 'var(--accent-primary)' } },
               `🏛️ BOARD INBOX (${pendingProposals.length} Pending)`
             ),
-            h('span', { className: 'sub-hint' }, 'Governance Gate')
+            h('span', { className: 'sub-hint' }, 'Typed HITL Schema Gate')
           ),
           (state.boardInbox || []).slice(0, 3).map((prop) =>
             h('div', {

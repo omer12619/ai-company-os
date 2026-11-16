@@ -3,6 +3,7 @@ const assert = require('node:assert/strict');
 const http = require('node:http');
 const { app, engine } = require('../server/index');
 const { retrieveContext } = require('../server/rag-retriever');
+const { selectArbitrageModel } = require('../server/llm-router');
 
 function requestJson(baseUrl, method, urlPath, body) {
   return new Promise((resolve, reject) => {
@@ -221,4 +222,51 @@ test('Contract-first validators return 400 Bad Request on invalid payloads & spe
   engine.state.company.isRunning = prevRunning;
   engine.state.company.budgetSpent = prevSpent;
   engine.state.company.budgetTotal = prevTotal;
+});
+
+test('AGENTS.md constitution loads, Smart Model Arbitrage routes tiers, and Typed HITL validates schema', async () => {
+  const rules = engine.loadAgentsRules();
+  assert.ok(rules.includes('Agentic AI Foundation'));
+
+  const escalated = selectArbitrageModel({
+    activeProvider: 'openai',
+    configuredModel: 'gpt-4o-mini',
+    taskAttempts: 2,
+    budgetRemainingRatio: 0.8
+  });
+  assert.equal(escalated.model, 'gpt-4o');
+  assert.equal(escalated.arbitrageTier, 'escalated');
+
+  const economy = selectArbitrageModel({
+    activeProvider: 'openai',
+    configuredModel: 'gpt-4o',
+    taskAttempts: 2,
+    budgetRemainingRatio: 0.1
+  });
+  assert.equal(economy.model, 'gpt-4o-mini');
+  assert.equal(economy.arbitrageTier, 'economy');
+
+  const sampleProp = {
+    id: 'prop-test-hitl',
+    type: 'BUDGET_INCREASE',
+    title: 'Test Typed HITL',
+    status: 'pending',
+    payload: { amount: 5 },
+    responseSchema: { decision: { type: 'enum', options: ['approve', 'veto'] } }
+  };
+  engine.state.boardInbox.unshift(sampleProp);
+  const server = await new Promise((resolve) => {
+    const s = app.listen(0, '127.0.0.1', () => resolve(s));
+  });
+  try {
+    const baseUrl = `http://127.0.0.1:${server.address().port}`;
+    const badHitl = await requestJson(baseUrl, 'POST', '/api/board/resolve', {
+      proposalId: 'prop-test-hitl',
+      decision: 'invalid_choice'
+    });
+    assert.equal(badHitl.status, 400);
+  } finally {
+    engine.state.boardInbox = engine.state.boardInbox.filter((p) => p.id !== 'prop-test-hitl');
+    await new Promise((resolve) => server.close(resolve));
+  }
 });
