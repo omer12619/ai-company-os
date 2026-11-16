@@ -2,6 +2,11 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+const fs = require('fs');
+const zlib = require('zlib');
+const { promisify } = require('util');
+const { execFile } = require('child_process');
+const execFileAsync = promisify(execFile);
 const { PROVIDERS, testProviderConnection } = require('./llm-router');
 const {
   COMPANY_TEMPLATES,
@@ -15,8 +20,11 @@ const {
 
 const app = express();
 const PORT = process.env.PORT || 3456;
-const zlib = require('zlib');
+const HOST = process.env.HOST || '127.0.0.1';
 const engine = new CompanyEngine();
+
+const asyncHandler = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
+const safeState = () => engine.sanitizeStateForClient(engine.state);
 
 app.use(cors());
 app.use(express.json({ limit: '5mb' }));
@@ -42,7 +50,7 @@ app.use(express.static(path.join(__dirname, '..', 'public')));
 
 app.get('/api/state', (req, res) => {
   res.json({
-    state: engine.state,
+    state: safeState(),
     providersCatalog: PROVIDERS,
     templates: COMPANY_TEMPLATES,
     githubIntegrations: GITHUB_INTEGRATIONS,
@@ -51,6 +59,20 @@ app.get('/api/state', (req, res) => {
     owaspRisks: OWASP_AGENTIC_RISKS,
     a2aCards: engine.getA2AAgentCards()
   });
+});
+
+app.get('/api/workspace/file/:filename', (req, res) => {
+  const safeName = path.basename(String(req.params.filename || '')).replace(/[^a-zA-Z0-9._-]/g, '_');
+  const found = (engine.state.workspaceFiles || []).find((f) => f.filename === safeName);
+  if (found && typeof found.content === 'string') {
+    return res.json({ ok: true, file: found });
+  }
+  const diskPath = path.join(__dirname, '..', 'workspace', safeName);
+  if (fs.existsSync(diskPath)) {
+    const content = fs.readFileSync(diskPath, 'utf8');
+    return res.json({ ok: true, file: { filename: safeName, content } });
+  }
+  return res.status(404).json({ ok: false, error: 'Workspace file not found' });
 });
 
 app.get('/api/stream', (req, res) => {
@@ -79,151 +101,151 @@ app.get('/api/company/export', (req, res) => {
 });
 
 app.post('/api/company/import', (req, res) => {
-  const state = engine.importCompanyPack(req.body);
-  res.json({ state });
+  engine.importCompanyPack(req.body);
+  res.json({ state: safeState() });
 });
 
 app.post('/api/company/init', (req, res) => {
   const { name, theme, goal, budget, templateId } = req.body;
-  const state = engine.resetCompany({ name, theme, goal, budget, templateId });
-  res.json({ state });
+  engine.resetCompany({ name, theme, goal, budget, templateId });
+  res.json({ state: safeState() });
 });
 
 app.post('/api/company/settings', (req, res) => {
   const { speedMs, uiTheme } = req.body;
-  const state = engine.setPipelineSpeed(speedMs, uiTheme);
-  res.json({ state });
+  engine.setPipelineSpeed(speedMs, uiTheme);
+  res.json({ state: safeState() });
 });
 
 app.post('/api/company/optimize', (req, res) => {
-  const state = engine.optimizeCompany();
-  res.json({ state });
+  engine.optimizeCompany();
+  res.json({ state: safeState() });
 });
 
 app.post('/api/pipeline/start', (req, res) => {
   engine.startLoop();
-  res.json({ state: engine.state });
+  res.json({ state: safeState() });
 });
 
 app.post('/api/pipeline/stop', (req, res) => {
   engine.stopLoop();
-  res.json({ state: engine.state });
+  res.json({ state: safeState() });
 });
 
-app.post('/api/pipeline/step', async (req, res) => {
+app.post('/api/pipeline/step', asyncHandler(async (req, res) => {
   await engine.runSingleCycle();
-  res.json({ state: engine.state });
-});
+  res.json({ state: safeState() });
+}));
 
 app.post('/api/providers/config', (req, res) => {
   engine.updateProviderConfig(req.body);
-  res.json({ state: engine.state });
+  res.json({ state: safeState() });
 });
 
-app.post('/api/agents/hire', async (req, res) => {
+app.post('/api/agents/hire', asyncHandler(async (req, res) => {
   const { role, department, reason, providerOverride, modelOverride, harnessType, tools } = req.body;
   await engine.manualHire({ role, department, reason, providerOverride, modelOverride, harnessType, tools });
-  res.json({ state: engine.state });
-});
+  res.json({ state: safeState() });
+}));
 
 app.post('/api/agents/spawn-subagent', (req, res) => {
   const { parentAgentId, name, specialty, taskFocus, promoteToFullHire } = req.body;
   engine.manualSpawnSubAgent({ parentAgentId, name, specialty, taskFocus, promoteToFullHire });
-  res.json({ state: engine.state });
+  res.json({ state: safeState() });
 });
 
 app.post('/api/agents/update', (req, res) => {
   const { agentId, updates } = req.body;
   engine.updateAgentConfig(agentId, updates);
-  res.json({ state: engine.state });
+  res.json({ state: safeState() });
 });
 
 app.post('/api/agents/clone', (req, res) => {
   const { agentId } = req.body;
   engine.cloneAgent(agentId);
-  res.json({ state: engine.state });
+  res.json({ state: safeState() });
 });
 
 app.post('/api/agents/fire', (req, res) => {
   const { agentId, reason } = req.body;
   engine.manualFire(agentId, reason);
-  res.json({ state: engine.state });
+  res.json({ state: safeState() });
 });
 
 app.post('/api/agents/train', (req, res) => {
   const { agentId, sop } = req.body;
   engine.manualTrainAgent(agentId, sop);
-  res.json({ state: engine.state });
+  res.json({ state: safeState() });
 });
 
 app.post('/api/tasks/add', (req, res) => {
   const { title, department, collaboratorDept, priority, description } = req.body;
   engine.manualAddTask({ title, department, collaboratorDept, priority, description });
-  res.json({ state: engine.state });
+  res.json({ state: safeState() });
 });
 
 app.post('/api/tasks/handoff', (req, res) => {
   const { taskId, toAgentId, note } = req.body;
   engine.manualHandoffTask({ taskId, toAgentId, note });
-  res.json({ state: engine.state });
+  res.json({ state: safeState() });
 });
 
-app.post('/api/console/message', async (req, res) => {
+app.post('/api/console/message', asyncHandler(async (req, res) => {
   const { toAgentId, message } = req.body;
   await engine.postConsoleMessage({ toAgentId, message });
-  res.json({ state: engine.state });
-});
+  res.json({ state: safeState() });
+}));
 
 app.post('/api/board/resolve', (req, res) => {
   const { proposalId, decision } = req.body;
   engine.resolveBoardProposal({ proposalId, decision });
-  res.json({ state: engine.state });
+  res.json({ state: safeState() });
 });
 
 app.post('/api/agents/reassign-room', (req, res) => {
   const { agentId, targetRoom } = req.body;
   const result = engine.reassignAgentRoom({ agentId, targetRoom });
-  res.json({ state: engine.state, result });
+  res.json({ state: safeState(), result });
 });
 
-app.post('/api/workspace/run', async (req, res) => {
+app.post('/api/workspace/run', asyncHandler(async (req, res) => {
   const { filename } = req.body;
   const result = await engine.runWorkspaceModule(filename);
-  res.json({ state: engine.state, result });
-});
+  res.json({ state: safeState(), result });
+}));
 
 app.post('/api/workspace/save', (req, res) => {
   const { filename, content } = req.body;
   const file = engine.saveWorkspaceFileContent({ filename, content });
-  res.json({ state: engine.state, file });
+  res.json({ state: safeState(), file });
 });
 
-app.post('/api/company/war-room', async (req, res) => {
+app.post('/api/company/war-room', asyncHandler(async (req, res) => {
   const { topic } = req.body || {};
   await engine.runWarRoomStandup({ topic });
-  res.json({ state: engine.state });
-});
+  res.json({ state: safeState() });
+}));
 
 app.post('/api/company/checkpoints/create', (req, res) => {
   const { label } = req.body || {};
   const checkpoint = engine.createCheckpoint({ label });
-  res.json({ state: engine.state, checkpoint });
+  res.json({ state: safeState(), checkpoint });
 });
 
 app.post('/api/company/checkpoints/restore', (req, res) => {
   const { checkpointId } = req.body || {};
   engine.restoreCheckpoint({ checkpointId });
-  res.json({ state: engine.state });
+  res.json({ state: safeState() });
 });
 
 app.post('/api/company/red-team', (req, res) => {
   const audit = engine.runRedTeamAudit();
-  res.json({ state: engine.state, audit });
+  res.json({ state: safeState(), audit });
 });
 
 app.post('/api/workspace/export-app', (req, res) => {
   const bundle = engine.exportStandaloneApp();
-  res.json({ state: engine.state, bundle });
+  res.json({ state: safeState(), bundle });
 });
 
 app.get('/api/workspace/export-app', (req, res) => {
@@ -235,43 +257,43 @@ app.get('/api/workspace/export-app', (req, res) => {
 
 app.post('/api/company/poach-talent', (req, res) => {
   const result = engine.poachRivalTalent(req.body || {});
-  res.json({ state: engine.state, result });
+  res.json({ state: safeState(), result });
 });
 
 app.post('/api/workspace/test-all', (req, res) => {
   const testResult = engine.runAllTests();
-  res.json({ state: engine.state, testResult });
+  res.json({ state: safeState(), testResult });
 });
 
 app.post('/api/company/shift-mode', (req, res) => {
   engine.setOfficeShiftMode(req.body || {});
-  res.json({ state: engine.state });
+  res.json({ state: safeState() });
 });
 
-app.post('/api/tools/execute', async (req, res) => {
+app.post('/api/tools/execute', asyncHandler(async (req, res) => {
   const result = await engine.executeCustomToolScript(req.body || {});
-  res.json({ state: engine.state, result });
-});
+  res.json({ state: safeState(), result });
+}));
 
-app.post('/api/tools/create', async (req, res) => {
+app.post('/api/tools/create', asyncHandler(async (req, res) => {
   const result = await engine.createCustomMcpTool(req.body || {});
   res.json({
-    state: engine.state,
+    state: safeState(),
     toolRegistry: TOOL_REGISTRY,
     mcpServers: MCP_SERVERS,
     result
   });
-});
+}));
 
 app.post('/api/workspace/auto-heal', (req, res) => {
   const healResult = engine.runSelfHealingCodeDebugger();
-  res.json({ state: engine.state, healResult });
+  res.json({ state: safeState(), healResult });
 });
 
-app.post('/api/mcp', async (req, res) => {
+app.post('/api/mcp', asyncHandler(async (req, res) => {
   const rpcResponse = await handleMcpJsonRpc({ ...(req.body || {}), engine });
-  res.json({ ...rpcResponse, state: engine.state });
-});
+  res.json({ ...rpcResponse, state: safeState() });
+}));
 
 app.get('/api/a2a/cards', (req, res) => {
   res.json({
@@ -309,16 +331,16 @@ app.get('/api/memory/graph', (req, res) => {
 
 app.post('/api/memory/consolidate', (req, res) => {
   const memory = engine.consolidateCognitiveMemory();
-  res.json({ state: engine.state, memory });
+  res.json({ state: safeState(), memory });
 });
 
 app.post('/api/evals/run', (req, res) => {
   const evalResult = engine.runCompanyEvalBenchmark();
-  res.json({ state: engine.state, evalResult });
+  res.json({ state: safeState(), evalResult });
 });
 
 // v12: Live LLM API connection test (verify key + latency before running pipeline)
-app.post('/api/providers/test', async (req, res) => {
+app.post('/api/providers/test', asyncHandler(async (req, res) => {
   const { providerKey, model, apiKey, baseUrl } = req.body || {};
   const saved = engine.state.providerConfig?.providers?.[providerKey] || {};
   const result = await testProviderConnection({
@@ -328,7 +350,7 @@ app.post('/api/providers/test', async (req, res) => {
     baseUrl: baseUrl || saved.baseUrl
   });
   res.json({ result });
-});
+}));
 
 // v12 + v13: Live product runtime — serves the company's generated landing page + interactive Stripe checkout dock
 app.get('/live-product', (req, res) => {
@@ -392,37 +414,42 @@ app.get('/live-product/api/pricing', (req, res) => {
 
 app.post('/api/product/simulate-traffic', (req, res) => {
   const traffic = engine.simulateLiveCustomerTraffic();
-  res.json({ state: engine.state, traffic });
+  res.json({ state: safeState(), traffic });
 });
 
 app.post('/api/agents/tournament', (req, res) => {
   const tournament = engine.runDspyPromptTournament(req.body || {});
-  res.json({ state: engine.state, tournament });
+  res.json({ state: safeState(), tournament });
 });
 
 app.post('/api/tasks/edit-state', (req, res) => {
   const result = engine.editTaskStateAndResume(req.body || {});
-  res.json({ state: engine.state, result });
+  res.json({ state: safeState(), result });
 });
 
 app.post('/api/product/browser-agent-audit', (req, res) => {
   const result = engine.runBrowserUseDomAudit();
-  res.json({ state: engine.state, result });
+  res.json({ state: safeState(), result });
 });
 
 app.post('/api/company/market-blitz', (req, res) => {
   const result = engine.runCompetitiveMarketBlitz(req.body || {});
-  res.json({ state: engine.state, result });
+  res.json({ state: safeState(), result });
 });
 
-app.get('/api/github/status', (req, res) => {
-  const { execFileSync } = require('child_process');
+app.get('/api/github/status', asyncHandler(async (req, res) => {
   const rootDir = path.join(__dirname, '..');
   try {
-    const branch = execFileSync('git', ['rev-parse', '--abbrev-ref', 'HEAD'], { cwd: rootDir, encoding: 'utf8' }).trim();
-    const remoteUrl = execFileSync('git', ['remote', 'get-url', 'origin'], { cwd: rootDir, encoding: 'utf8' }).trim();
-    const statusRaw = execFileSync('git', ['status', '--short'], { cwd: rootDir, encoding: 'utf8' }).trim();
-    const logRaw = execFileSync('git', ['log', '-n', '6', '--pretty=format:%h|%s|%cr'], { cwd: rootDir, encoding: 'utf8' }).trim();
+    const [branchOut, remoteOut, statusOut, logOut] = await Promise.all([
+      execFileAsync('git', ['rev-parse', '--abbrev-ref', 'HEAD'], { cwd: rootDir, encoding: 'utf8' }),
+      execFileAsync('git', ['remote', 'get-url', 'origin'], { cwd: rootDir, encoding: 'utf8' }),
+      execFileAsync('git', ['status', '--short'], { cwd: rootDir, encoding: 'utf8' }),
+      execFileAsync('git', ['log', '-n', '6', '--pretty=format:%h|%s|%cr'], { cwd: rootDir, encoding: 'utf8' })
+    ]);
+    const branch = branchOut.stdout.trim();
+    const remoteUrl = remoteOut.stdout.trim();
+    const statusRaw = statusOut.stdout.trim();
+    const logRaw = logOut.stdout.trim();
     const commits = logRaw
       ? logRaw.split('\n').map((line) => {
           const [hash, subject, relativeTime] = line.split('|');
@@ -439,20 +466,20 @@ app.get('/api/github/status', (req, res) => {
   } catch (err) {
     res.json({ ok: false, error: err.message, branch: 'main', remoteUrl: 'https://github.com/omer12619/ai-company-os', changedFiles: [], commits: [] });
   }
-});
+}));
 
-app.post('/api/github/sync', (req, res) => {
-  const { execFileSync } = require('child_process');
+app.post('/api/github/sync', asyncHandler(async (req, res) => {
   const rootDir = path.join(__dirname, '..');
   const commitMsg = String(req.body?.message || `feat(aci-studio): autonomous workspace & telemetry sync (${new Date().toISOString().slice(0, 16)})`).slice(0, 120);
   try {
-    execFileSync('git', ['add', '-A'], { cwd: rootDir, stdio: 'pipe' });
-    const statusAfterAdd = execFileSync('git', ['status', '--porcelain'], { cwd: rootDir, encoding: 'utf8' }).trim();
+    await execFileAsync('git', ['add', '-A'], { cwd: rootDir });
+    const { stdout: statusOut } = await execFileAsync('git', ['status', '--porcelain'], { cwd: rootDir, encoding: 'utf8' });
     let commitOutput = 'Working tree clean — already up to date with origin/main';
-    if (statusAfterAdd) {
-      commitOutput = execFileSync('git', ['commit', '-m', commitMsg], { cwd: rootDir, encoding: 'utf8' }).trim();
+    if (statusOut.trim()) {
+      const { stdout: cOut } = await execFileAsync('git', ['commit', '-m', commitMsg], { cwd: rootDir, encoding: 'utf8' });
+      commitOutput = cOut.trim();
     }
-    execFileSync('git', ['push', 'origin', 'main'], { cwd: rootDir, stdio: 'pipe', timeout: 45000 });
+    await execFileAsync('git', ['push', 'origin', 'main'], { cwd: rootDir, timeout: 45000 });
     engine.logEvent({
       type: 'SYSTEM',
       department: 'Engineering',
@@ -465,15 +492,36 @@ app.post('/api/github/sync', (req, res) => {
       commitMsg,
       commitOutput,
       summary: `Synced & pushed to https://github.com/omer12619/ai-company-os (${commitMsg})`,
-      state: engine.state
+      state: safeState()
     });
   } catch (err) {
     res.status(400).json({ ok: false, error: err.message });
   }
+}));
+
+// Global Express Error Middleware
+app.use((err, req, res, next) => {
+  console.error('Unhandled API error:', err);
+  if (res.headersSent) return next(err);
+  res.status(err.status || 500).json({ ok: false, error: err.message || 'Internal server error' });
 });
 
-app.listen(PORT, () => {
-  console.log(`\n======================================================`);
-  console.log(`🚀 AI Company OS v13 at: http://localhost:${PORT}`);
-  console.log(`======================================================\n`);
-});
+if (require.main === module) {
+  const server = app.listen(PORT, HOST, () => {
+    console.log(`\n======================================================`);
+    console.log(`🚀 AI Company OS v13 at: http://${HOST}:${PORT}`);
+    console.log(`======================================================\n`);
+  });
+
+  const shutdown = (signal) => {
+    console.log(`\n🛑 Received ${signal}, flushing state to disk...`);
+    engine.stopLoop();
+    engine.flushStateSync();
+    server.close(() => process.exit(0));
+    setTimeout(() => process.exit(0), 1500).unref();
+  };
+  process.on('SIGINT', () => shutdown('SIGINT'));
+  process.on('SIGTERM', () => shutdown('SIGTERM'));
+}
+
+module.exports = { app, engine };

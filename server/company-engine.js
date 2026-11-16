@@ -51,13 +51,60 @@ class CompanyEngine {
     this.sseClients.delete(res);
   }
 
+  sanitizeStateForClient(state = this.state, { includeWorkspaceContent = true } = {}) {
+    if (!state) return state;
+    const sanitizedProviders = {};
+    const rawProviders = state.providerConfig?.providers || {};
+    for (const [k, v] of Object.entries(rawProviders)) {
+      const rawKey = typeof v?.apiKey === 'string' ? v.apiKey : '';
+      sanitizedProviders[k] = {
+        ...v,
+        apiKey: '',
+        hasKey: Boolean(rawKey),
+        apiKeyMasked: rawKey.length > 7 ? `${rawKey.slice(0, 4)}••••${rawKey.slice(-3)}` : rawKey ? '••••' : ''
+      };
+    }
+    const workspaceFiles = includeWorkspaceContent
+      ? state.workspaceFiles
+      : (state.workspaceFiles || []).map((f) => ({
+          id: f.id,
+          filename: f.filename,
+          department: f.department,
+          author: f.author,
+          sizeBytes: f.sizeBytes,
+          updatedAt: f.updatedAt
+        }));
+
+    return {
+      ...state,
+      providerConfig: {
+        ...(state.providerConfig || {}),
+        providers: sanitizedProviders
+      },
+      workspaceFiles
+    };
+  }
+
+  flushStateSync() {
+    if (this.diskFlushTimer) {
+      clearTimeout(this.diskFlushTimer);
+      this.diskFlushTimer = null;
+    }
+    try {
+      fs.writeFileSync(STATE_FILE, JSON.stringify(this.state, null, 2), 'utf8');
+    } catch (e) {
+      console.error('Failed to flush state on shutdown:', e.message);
+    }
+  }
+
   broadcastSSE() {
     if (!this.sseClients || this.sseClients.size === 0) return;
     if (this.sseFlushTimer) return;
     this.sseFlushTimer = setTimeout(() => {
       this.sseFlushTimer = null;
       if (!this.sseClients || this.sseClients.size === 0) return;
-      const payload = `data: ${JSON.stringify({ state: this.state })}\n\n`;
+      const slimState = this.sanitizeStateForClient(this.state, { includeWorkspaceContent: false });
+      const payload = `data: ${JSON.stringify({ state: slimState })}\n\n`;
       for (const client of this.sseClients) {
         try {
           client.write(payload);
@@ -466,9 +513,17 @@ class CompanyEngine {
     if (newConfig.providers) {
       for (const [provKey, provVal] of Object.entries(newConfig.providers)) {
         if (this.state.providerConfig.providers[provKey]) {
+          const existing = this.state.providerConfig.providers[provKey];
+          const nextApiKey =
+            provVal.clearKey === true
+              ? ''
+              : typeof provVal.apiKey === 'string' && provVal.apiKey.trim() !== ''
+                ? provVal.apiKey.trim()
+                : existing.apiKey || '';
           this.state.providerConfig.providers[provKey] = {
-            ...this.state.providerConfig.providers[provKey],
-            ...provVal
+            ...existing,
+            ...provVal,
+            apiKey: nextApiKey
           };
         }
       }

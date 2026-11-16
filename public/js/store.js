@@ -24,9 +24,34 @@
     return storeState;
   }
 
+  function mergeWorkspaceContent(prevState, nextPartial) {
+    if (!nextPartial?.companyState?.workspaceFiles || !prevState?.companyState?.workspaceFiles) {
+      return nextPartial;
+    }
+    const prevByName = new Map(
+      prevState.companyState.workspaceFiles.map((f) => [f.filename, f])
+    );
+    const mergedFiles = nextPartial.companyState.workspaceFiles.map((f) => {
+      if (typeof f.content === 'string') return f;
+      const prev = prevByName.get(f.filename);
+      if (prev && typeof prev.content === 'string' && prev.updatedAt === f.updatedAt) {
+        return { ...f, content: prev.content };
+      }
+      return f;
+    });
+    return {
+      ...nextPartial,
+      companyState: {
+        ...nextPartial.companyState,
+        workspaceFiles: mergedFiles
+      }
+    };
+  }
+
   function setState(partial) {
-    const nextPartial = typeof partial === 'function' ? partial(storeState) : partial;
-    if (!nextPartial) return storeState;
+    const rawPartial = typeof partial === 'function' ? partial(storeState) : partial;
+    if (!rawPartial) return storeState;
+    const nextPartial = mergeWorkspaceContent(storeState, rawPartial);
     storeState = Object.assign({}, storeState, nextPartial, {
       updatesCount: storeState.updatesCount + 1,
       lastUpdatedAt: new Date().toISOString()

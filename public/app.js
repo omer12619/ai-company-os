@@ -889,7 +889,11 @@ function onProviderSelectChange() {
   const saved = appState.providerConfig.providers?.[key] || {};
 
   document.getElementById('inputProviderModel').value = saved.model || catalogInfo.defaultModel || '';
-  document.getElementById('inputProviderKey').value = saved.apiKey || '';
+  const keyInput = document.getElementById('inputProviderKey');
+  keyInput.value = '';
+  keyInput.placeholder = saved.hasKey
+    ? `Saved on server (${saved.apiKeyMasked || '••••'}) — enter new key to replace`
+    : 'Paste API key (stored server-side only)';
   document.getElementById('inputProviderUrl').value = saved.baseUrl || catalogInfo.endpoint || '';
 
   const pills = document.getElementById('modelPresetPills');
