@@ -97,6 +97,20 @@ test('HTTP API smoke tests (/api/state, /live-product/api/health, /api/mcp, 404 
     const missingFileRes = await requestJson(baseUrl, 'GET', '/api/workspace/file/does_not_exist_12345.js');
     assert.equal(missingFileRes.status, 404);
     assert.equal(missingFileRes.body.ok, false);
+
+    const liveRes = await new Promise((resolve, reject) => {
+      http
+        .get(`${baseUrl}/live-product`, (res) => {
+          let html = '';
+          res.on('data', (c) => (html += c));
+          res.on('end', () => resolve({ status: res.statusCode, headers: res.headers, html }));
+        })
+        .on('error', reject);
+    });
+    assert.equal(liveRes.status, 200);
+    assert.equal(liveRes.headers['x-content-type-options'], 'nosniff');
+    assert.equal(liveRes.headers['x-frame-options'], 'SAMEORIGIN');
+    assert.ok(liveRes.html.includes('aiOsLiveRuntimeBar'));
   } finally {
     await new Promise((resolve) => server.close(resolve));
   }
