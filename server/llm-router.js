@@ -163,10 +163,14 @@ async function callLLM({ providerConfig, agent, systemPrompt, userPrompt, jsonMo
     let content = '';
     let promptTokens = estimateTokens(compressedSys + compressedUser);
     let completionTokens = 0;
+    const reqSignal = AbortSignal.timeout(
+      activeProvider === 'ollama' || activeProvider === 'custom' ? 90000 : 30000
+    );
 
     if (activeProvider === 'anthropic') {
       const res = await fetch(baseUrl || 'https://api.anthropic.com/v1/messages', {
         method: 'POST',
+        signal: reqSignal,
         headers: {
           'Content-Type': 'application/json',
           'x-api-key': apiKey,
@@ -200,6 +204,7 @@ async function callLLM({ providerConfig, agent, systemPrompt, userPrompt, jsonMo
       };
       const res = await fetch(url, {
         method: 'POST',
+        signal: reqSignal,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body)
       });
@@ -233,6 +238,7 @@ async function callLLM({ providerConfig, agent, systemPrompt, userPrompt, jsonMo
 
       const res = await fetch(baseUrl, {
         method: 'POST',
+        signal: reqSignal,
         headers,
         body: JSON.stringify(payload)
       });
