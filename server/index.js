@@ -9,6 +9,14 @@ const { execFile } = require('child_process');
 const execFileAsync = promisify(execFile);
 const { PROVIDERS, testProviderConnection } = require('./llm-router');
 const {
+  validateCompanyInit,
+  validateCompanySettings,
+  validateTaskAdd,
+  validateConsoleMessage,
+  validateRagQuery,
+  validateWorkspaceSave
+} = require('./validators');
+const {
   COMPANY_TEMPLATES,
   GITHUB_INTEGRATIONS,
   MCP_SERVERS,
@@ -126,13 +134,13 @@ app.post('/api/company/import', (req, res) => {
 });
 
 app.post('/api/company/init', (req, res) => {
-  const { name, theme, goal, budget, templateId } = req.body;
-  engine.resetCompany({ name, theme, goal, budget, templateId });
+  const payload = validateCompanyInit(req.body);
+  engine.resetCompany(payload);
   res.json({ state: safeState() });
 });
 
 app.post('/api/company/settings', (req, res) => {
-  const { speedMs, uiTheme } = req.body;
+  const { speedMs, uiTheme } = validateCompanySettings(req.body);
   engine.setPipelineSpeed(speedMs, uiTheme);
   res.json({ state: safeState() });
 });
@@ -199,8 +207,8 @@ app.post('/api/agents/train', (req, res) => {
 });
 
 app.post('/api/tasks/add', (req, res) => {
-  const { title, department, collaboratorDept, priority, description } = req.body;
-  engine.manualAddTask({ title, department, collaboratorDept, priority, description });
+  const payload = validateTaskAdd(req.body);
+  engine.manualAddTask(payload);
   res.json({ state: safeState() });
 });
 
@@ -211,8 +219,8 @@ app.post('/api/tasks/handoff', (req, res) => {
 });
 
 app.post('/api/console/message', asyncHandler(async (req, res) => {
-  const { toAgentId, message } = req.body;
-  await engine.postConsoleMessage({ toAgentId, message });
+  const payload = validateConsoleMessage(req.body);
+  await engine.postConsoleMessage(payload);
   res.json({ state: safeState() });
 }));
 
@@ -235,8 +243,8 @@ app.post('/api/workspace/run', asyncHandler(async (req, res) => {
 }));
 
 app.post('/api/workspace/save', (req, res) => {
-  const { filename, content } = req.body;
-  const file = engine.saveWorkspaceFileContent({ filename, content });
+  const payload = validateWorkspaceSave(req.body);
+  const file = engine.saveWorkspaceFileContent(payload);
   res.json({ state: safeState(), file });
 });
 
@@ -355,8 +363,8 @@ app.post('/api/memory/consolidate', (req, res) => {
 });
 
 app.post('/api/rag/query', (req, res) => {
-  const { query = '', department = null, topK = 4 } = req.body || {};
-  const result = engine.retrieveRagContext({ query: String(query), department, topK: Math.min(10, Math.max(1, Number(topK) || 4)) });
+  const payload = validateRagQuery(req.body);
+  const result = engine.retrieveRagContext(payload);
   res.json({ ok: true, ...result });
 });
 
@@ -527,9 +535,10 @@ app.post('/api/github/sync', asyncHandler(async (req, res) => {
 
 // Global Express Error Middleware
 app.use((err, req, res, next) => {
-  console.error('Unhandled API error:', err);
+  const status = err.status || 500;
+  if (status >= 500) console.error('Unhandled API error:', err);
   if (res.headersSent) return next(err);
-  res.status(err.status || 500).json({ ok: false, error: err.message || 'Internal server error' });
+  res.status(status).json({ ok: false, error: err.message || 'Internal server error' });
 });
 
 if (require.main === module) {

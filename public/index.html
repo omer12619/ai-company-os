@@ -30,13 +30,13 @@
         <div class="brand-title-row">
           <h1 id="companyName">NexusAI SaaS</h1>
           <span id="companyTheme" class="theme-pill">B2B AI Workflow Automation</span>
-          <span class="provider-pill" style="color:var(--accent);border-color:var(--accent);font-weight:700;" onclick="openOmniPalette()" title="Open Founder Omni-Command Palette (Shortcut: Ctrl+K or ⌘K)">⌘K Command Center</span>
-          <span id="voiceWalkiePill" class="provider-pill" style="color:#f472b6;border-color:#f472b6;font-weight:700;" onclick="openVoiceWalkieModal()" title="Real-Time Voice Walkie-Talkie & Spoken C-Suite Standups">🎙️ Voice Walkie-Talkie</span>
-          <span class="provider-pill" style="color:#38bdf8;border-color:#38bdf8;font-weight:700;" onclick="toggleGlobalProductSplit()" title="Toggle Split-Screen Live Product Runtime & Browser-Use DOM Agent">🌐 Live Product + DOM Agent</span>
-          <span class="provider-pill" style="color:#fbbf24;border-color:#fbbf24;font-weight:700;" onclick="openMarketRadarModal()" title="2D Competitor Market Radar & FinOps Runway">📊 Market Radar</span>
-          <span class="provider-pill" style="color:#a78bfa;border-color:#a78bfa;font-weight:700;" onclick="openGitHubSyncModal()" title="OpenHands ACI Studio & Live GitHub Auto-Push (omer12619/ai-company-os)">🐙 GitHub Sync</span>
-          <span id="activeProviderBadge" class="provider-pill" onclick="openModal('providerModal')" title="Configure OpenAI, Claude, Gemini, Groq, Ollama, etc.">🔌 Provider: Simulator</span>
-          <span class="provider-pill" style="color:var(--success)" onclick="exportCompanyPack()" title="Paperclip-style Portable Company Pack Export">📦 Export Pack</span>
+          <button type="button" class="provider-pill" style="color:var(--accent);border-color:var(--accent);font-weight:700;" onclick="openOmniPalette()" aria-label="Open Founder Omni-Command Palette" title="Open Founder Omni-Command Palette (Shortcut: Ctrl+K or ⌘K)">⌘K Command Center</button>
+          <button type="button" id="voiceWalkiePill" class="provider-pill" style="color:#f472b6;border-color:#f472b6;font-weight:700;" onclick="openVoiceWalkieModal()" aria-label="Open Real-Time Voice Walkie-Talkie" title="Real-Time Voice Walkie-Talkie & Spoken C-Suite Standups">🎙️ Voice Walkie-Talkie</button>
+          <button type="button" class="provider-pill" style="color:#38bdf8;border-color:#38bdf8;font-weight:700;" onclick="toggleGlobalProductSplit()" aria-label="Toggle Split-Screen Live Product Runtime and DOM Agent" title="Toggle Split-Screen Live Product Runtime & Browser-Use DOM Agent">🌐 Live Product + DOM Agent</button>
+          <button type="button" class="provider-pill" style="color:#fbbf24;border-color:#fbbf24;font-weight:700;" onclick="openMarketRadarModal()" aria-label="Open 2D Competitor Market Radar" title="2D Competitor Market Radar & FinOps Runway">📊 Market Radar</button>
+          <button type="button" class="provider-pill" style="color:#a78bfa;border-color:#a78bfa;font-weight:700;" onclick="openGitHubSyncModal()" aria-label="Open GitHub Sync Studio" title="OpenHands ACI Studio & Live GitHub Auto-Push (omer12619/ai-company-os)">🐙 GitHub Sync</button>
+          <button type="button" id="activeProviderBadge" class="provider-pill" onclick="openModal('providerModal')" aria-label="Configure LLM Providers" title="Configure OpenAI, Claude, Gemini, Groq, Ollama, etc.">🔌 Provider: Simulator</button>
+          <button type="button" class="provider-pill" style="color:var(--success)" onclick="exportCompanyPack()" aria-label="Export Portable Company Pack" title="Paperclip-style Portable Company Pack Export">📦 Export Pack</button>
         </div>
         <p id="companyGoal" class="mission-subtitle">Loading company mission...</p>
       </div>

@@ -182,3 +182,43 @@ test('BM25 + Graph RAG retriever ranks relevant workspace & wiki chunks', async 
     await new Promise((resolve) => server.close(resolve));
   }
 });
+
+test('Contract-first validators return 400 Bad Request on invalid payloads & spend circuit breaker halts loop', async () => {
+  const server = await new Promise((resolve) => {
+    const s = app.listen(0, '127.0.0.1', () => resolve(s));
+  });
+  try {
+    const baseUrl = `http://127.0.0.1:${server.address().port}`;
+    const badTask = await requestJson(baseUrl, 'POST', '/api/tasks/add', { title: '   ' });
+    assert.equal(badTask.status, 400);
+    assert.equal(badTask.body.ok, false);
+
+    const badSettings = await requestJson(baseUrl, 'POST', '/api/company/settings', { speedMs: 10 });
+    assert.equal(badSettings.status, 400);
+
+    const badRag = await requestJson(baseUrl, 'POST', '/api/rag/query', { query: '' });
+    assert.equal(badRag.status, 400);
+  } finally {
+    await new Promise((resolve) => server.close(resolve));
+  }
+
+  // Test Spend Circuit Breaker
+  const prevRunning = engine.state.company.isRunning;
+  const prevSpent = engine.state.company.budgetSpent;
+  const prevTotal = engine.state.company.budgetTotal;
+  engine.state.company.isRunning = true;
+  engine.state.company.budgetTotal = 10;
+  engine.state.company.budgetSpent = 9.99;
+  engine.recordLedger({
+    agent: null,
+    action: 'Circuit Breaker Test',
+    provider: 'simulator',
+    model: 'test',
+    totalTokens: 100,
+    cost: 0.05
+  });
+  assert.equal(engine.state.company.isRunning, false);
+  engine.state.company.isRunning = prevRunning;
+  engine.state.company.budgetSpent = prevSpent;
+  engine.state.company.budgetTotal = prevTotal;
+});

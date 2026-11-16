@@ -103,9 +103,12 @@ flowchart TD
 ### 8. 🚀 2026 Frontier Agentic Upgrades (v13)
 * **🎙️ Real-Time Voice Walkie-Talkie & Spoken C-Suite Standups**: Bi-directional voice command channel (`SpeechRecognition` push-to-talk + `speechSynthesis` executive voice synthesis) with live equalizer waveform and spoken War Room standups.
 * **🧩 Interactive "MCP Apps" & Multi Round-Trip (`MRTR`) Widgets**: Live FinOps Seat ARPU & ARR simulator slider and MRTR CTA approval gates rendered directly inside the MCP terminal stream.
-* **🖥️ "Browser-Use" Visual DOM & Computer-Use Agent**: Overlays numbered visual DOM bounding boxes (`[1]`–`[5]`) and an autonomous scanning AI cursor over `/live-product`, executing automated CRO patches that boost conversion rates and MRR.
+* **🖥️ "Browser-Use" Visual DOM & Computer-Use Agent**: Parses real generated `*_landing.html` DOM/SEO/ARIA signals, auto-patches missing metadata, and overlays numbered visual DOM bounding boxes (`[1]`–`[5]`) with an autonomous scanning cursor over `/live-product`.
 * **📊 2D Competitor Market Radar & FinOps Burn-vs-MRR Chart**: Interactive SVG bubble radar (Feature Velocity vs. Market Share) and CFO cash runway trajectory with one-click competitive blitz maneuvers.
-* **🐙 OpenHands / SWE-Agent ACI Studio & Live GitHub Auto-Push**: Stage, commit, and push generated `/workspace` microservices and telemetry directly to `github.com/omer12619/ai-company-os` from the UI.
+* **🐙 OpenHands / SWE-Agent ACI Studio & Live GitHub Auto-Push**: Async non-blocking `git add`, `commit`, and `push` directly from the UI to `github.com/omer12619/ai-company-os`.
+* **📚 Zero-Dependency BM25 + Knowledge-Graph Hybrid RAG**: Indexes `/workspace` files, `memoryWiki`, and Knowledge Graph triples (`server/rag-retriever.js`) with `<retrieved_context data-untrusted="true">` prompt-injection isolation and `POST /api/rag/query`.
+* **⚡ Motion.dev S-Tier GPU Compositor Animations & Accessibility**: Hardware-accelerated `transform`/`opacity`/WAAPI animations (`MotionTierS`), React 18 `ErrorBoundary` isolation, keyboard-accessible `<button>` controls, and `@media (prefers-reduced-motion: reduce)` support.
+* **🛡️ Production Hardening**: Server-side API key masking (`hasKey` / `apiKeyMasked`), HTTP security headers & `/live-product` XSS escaping, Gzip API compression + slim SSE payloads, contract-first `400` input validation, `AbortSignal` LLM timeouts, re-entrancy pipeline mutex, and a real-time **FinOps Spend Circuit Breaker**.
 
 ---
 
@@ -143,11 +146,14 @@ npm install
 
 # Start the OS server
 npm start
+
+# Run the automated test suite (node --test)
+npm test
 ```
 
 Open your browser at:
 ```
-http://localhost:3456
+http://127.0.0.1:3456
 ```
 
 ---
@@ -169,18 +175,28 @@ http://localhost:3456
 ```
 ai-company-os/
 ├── server/
-│   ├── index.js                  # Express API server & REST / MCP endpoints
-│   ├── company-engine.js         # Autonomous company state machine & lifecycle
+│   ├── index.js                  # Express API server, Gzip, SSE, security headers & REST/MCP endpoints
+│   ├── company-engine.js         # Autonomous company state machine, mutex & lifecycle
+│   ├── company-catalogs.js       # Provider, template, MCP & OWASP static catalogs
+│   ├── rag-retriever.js          # Zero-dependency BM25 + Knowledge-Graph Hybrid RAG engine
+│   ├── validators.js             # Contract-first HTTP payload validators (400 Bad Request)
 │   ├── tool-executor.js          # Sandbox tool runner, OWASP firewall & evals
-│   └── llm-router.js             # Universal multi-provider LLM router & cache
+│   └── llm-router.js             # Universal multi-provider LLM router with AbortSignal timeouts
 ├── public/
-│   ├── index.html                # Main OS dashboard, modals & HUD layouts
-│   ├── styles.css                # Futuristic themes, spring physics & keyframes
-│   ├── app.js                    # Core frontend client, Omni-palette & graph
-│   └── virtual-office.js         # React + SVG 60fps 2.5D virtual office
+│   ├── index.html                # Main OS dashboard, modals & accessible HUD controls
+│   ├── styles.css                # Futuristic themes, S-Tier GPU compositor keyframes & reduced-motion
+│   ├── app.js                    # Core frontend client, Omni-palette & React 18 ErrorBoundary mounts
+│   ├── virtual-office.js         # React + SVG 2.5D virtual office & Browser-Use DOM overlay
+│   └── js/
+│       ├── store.js              # Reactive CompanyStore, MotionTierS WAAPI & ReactErrorBoundary
+│       └── components/
+│           ├── ReactStudios.js   # Workspace IDE, FinOps, Tool Router & Org Graph studios
+│           └── FrontierModals.js # Voice Walkie-Talkie, Market Radar & GitHub Sync modals
+├── tests/
+│   └── company-os.test.js        # Built-in node --test unit & HTTP integration suite
 ├── workspace/                    # Generated microservices, tests, SQL & landing funnels
 └── data/
-    └── company-state.json        # Persistent company state & snapshot ledger
+    └── company-state.json        # Persistent company state & snapshot ledger (gitignored)
 ```
 
 ---
