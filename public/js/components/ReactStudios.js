@@ -482,24 +482,50 @@ function WorkspaceExplorerComponent({ files, wiki }) {
   });
 
   const activeFile = allItems.find((x) => x.id === selectedId) || filteredItems[0] || allItems[0];
-  const isHtml = activeFile?.filename?.endsWith('.html');
-  const isJs = activeFile?.filename?.endsWith('.js');
-  const isJson = activeFile?.filename?.endsWith('.json');
-  const isSql = activeFile?.filename?.endsWith('.sql');
+  const [lazyContentMap, setLazyContentMap] = React.useState({});
+  const resolvedContent =
+    typeof activeFile?.content === 'string'
+      ? activeFile.content
+      : lazyContentMap[activeFile?.filename] ?? '';
+
+  React.useEffect(() => {
+    if (
+      activeFile &&
+      activeFile.sourceType === 'WORKSPACE FILE' &&
+      typeof activeFile.content !== 'string' &&
+      activeFile.filename &&
+      lazyContentMap[activeFile.filename] === undefined
+    ) {
+      fetch(`/api/workspace/file/${encodeURIComponent(activeFile.filename)}`)
+        .then((r) => r.json())
+        .then((d) => {
+          if (d?.ok && typeof d.file?.content === 'string') {
+            setLazyContentMap((prev) => ({ ...prev, [activeFile.filename]: d.file.content }));
+          }
+        })
+        .catch(() => {});
+    }
+  }, [activeFile?.filename, activeFile?.content]);
+
+  const activeFileResolved = activeFile ? { ...activeFile, content: resolvedContent } : null;
+  const isHtml = activeFileResolved?.filename?.endsWith('.html');
+  const isJs = activeFileResolved?.filename?.endsWith('.js');
+  const isJson = activeFileResolved?.filename?.endsWith('.json');
+  const isSql = activeFileResolved?.filename?.endsWith('.sql');
 
   React.useEffect(() => {
     setRunResult(null);
-    if (activeFile) {
-      setEditBuffer(activeFile.content || '');
+    if (activeFileResolved) {
+      setEditBuffer(activeFileResolved.content || '');
       if (viewMode === 'edit') setViewMode('preview');
     }
-  }, [activeFile?.id]);
+  }, [activeFileResolved?.id, activeFileResolved?.content]);
 
   React.useEffect(() => {
     if (previewContainerRef.current && viewMode !== 'edit') {
       triggerSyntaxAndMermaidRender(previewContainerRef.current);
     }
-  }, [activeFile?.id, activeFile?.content, viewMode]);
+  }, [activeFileResolved?.id, activeFileResolved?.content, viewMode]);
 
   const downloadFile = (file) => {
     if (!file) return;
@@ -555,8 +581,8 @@ function WorkspaceExplorerComponent({ files, wiki }) {
 
   const langClass = isJs ? 'language-javascript' : isJson ? 'language-json' : isSql ? 'language-sql' : isHtml ? 'language-xml' : '';
   const renderedHtml = activeFile && window.marked && !isJs && !isJson && !isSql && !isHtml
-    ? window.marked.parse(activeFile.content || '')
-    : `<pre><code class="${langClass}">${escapeHtml(activeFile?.content || '')}</code></pre>`;
+    ? window.marked.parse(resolvedContent || '')
+    : `<pre><code class="${langClass}">${escapeHtml(resolvedContent || '')}</code></pre>`;
 
   return h('div', null,
     h('div', { className: 'friendly-tip-bar' },
@@ -609,7 +635,7 @@ function WorkspaceExplorerComponent({ files, wiki }) {
         activeFile.sourceType === 'WORKSPACE FILE' && h('button', {
           className: `btn btn-sm ${viewMode === 'edit' ? 'btn-primary' : 'btn-secondary'}`,
           onClick: () => {
-            setEditBuffer(activeFile.content || '');
+            setEditBuffer(resolvedContent || '');
             setViewMode(viewMode === 'edit' ? 'preview' : 'edit');
           }
         }, viewMode === 'edit' ? '✕ Cancel Edit' : '✏️ Co-Edit File'),
@@ -722,7 +748,7 @@ function WorkspaceExplorerComponent({ files, wiki }) {
               )
             : (isHtml && viewMode === 'preview')
               ? h('iframe', {
-                  srcDoc: activeFile.content || '',
+                  srcDoc: resolvedContent || '',
                   title: activeFile.filename,
                   style: {
                     width: '100%',

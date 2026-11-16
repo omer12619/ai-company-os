@@ -1409,9 +1409,11 @@ window.syncFromExternalState = (newState) => {
     showToast(`${newestEvt.type}: ${newestEvt.title}`, newestEvt.detail);
   }
   if (newestEvt) lastSeenEventId = newestEvt.id;
-  appState = newState;
   if (window.CompanyStore) {
-    window.CompanyStore.setState({ companyState: newState, sseConnected });
+    const merged = window.CompanyStore.setState({ companyState: newState, sseConnected });
+    appState = merged.companyState || newState;
+  } else {
+    appState = newState;
   }
   renderAll();
 };
