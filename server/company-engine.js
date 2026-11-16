@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const { PROVIDERS, callLLM } = require('./llm-router');
+const { retrieveContext } = require('./rag-retriever');
 const {
   MCP_SERVERS,
   TOOL_REGISTRY,
@@ -299,6 +300,34 @@ class CompanyEngine {
     } catch (e) {
       console.error('Failed to write workspace artifact:', e.message);
     }
+  }
+
+  retrieveRagContext({ query, agent = null, department = null, topK = 3 } = {}) {
+    const res = retrieveContext({
+      state: this.state,
+      query: query || this.state.company?.goal || '',
+      department: department || agent?.department || null,
+      topK
+    });
+    if (res.hits.length > 0) {
+      this.state.lastRagRetrieval = {
+        query: String(query || '').slice(0, 120),
+        hitsCount: res.hits.length,
+        totalChunksIndexed: res.totalChunksIndexed,
+        durationMs: res.durationMs,
+        sources: res.hits.map((h) => ({ sourceName: h.sourceName, score: h.score })),
+        timestamp: new Date().toISOString()
+      };
+      this.recordOtelSpan({
+        operationName: `rag.bm25_retrieve (${res.hits.length} hits)`,
+        spanKind: 'INTERNAL',
+        agent,
+        durationMs: Math.max(1, res.durationMs),
+        status: 'OK',
+        detail: `BM25 indexed ${res.totalChunksIndexed} chunks -> top sources: ${res.hits.map((h) => h.sourceName).join(', ')}`
+      });
+    }
+    return res;
   }
 
   recordOtelSpan({ operationName, spanKind = 'INTERNAL', agent, toolName = null, provider = 'simulator', model = 'company-sim-v2', inputTokens = 0, outputTokens = 0, durationMs = 42, status = 'OK', detail = '' }) {
@@ -1072,6 +1101,13 @@ Prior Lessons / Requirements: ${req.inheritedSOP || 'Standard onboarding'}`;
 
     this.state.company.statusMessage = `${agent.avatar || '🤖'} ${agent.name} [⚙️ ${agent.activeTool || 'tool_script'}] ${spawnedSub ? `(+ sub-agent ${spawnedSub.name})` : ''} is building "${task.title}" ➔ handing off to ${nextCollaborator?.name || 'QA'}...`;
 
+    const rag = this.retrieveRagContext({
+      query: `${task.title} ${task.description || ''} ${agent.department || ''}`,
+      agent,
+      department: agent.department,
+      topK: 3
+    });
+
     const userPrompt = `ACTION:WORKER_EXECUTE
 Company Mission: ${this.state.company.goal}
 Department: ${agent.department}
@@ -1085,6 +1121,8 @@ Attempt Number: ${task.attempts}
 Previous QA Feedback: ${task.qaFeedback || 'None'}
 Real Tool & Script Execution Results:
 ${toolSummaryForLLM}
+Retrieved Company Knowledge (BM25 + Graph RAG):
+${rag.formattedContext || 'No prior matching workspace chunks.'}
 Learned SOPs: ${(agent.sops || []).join(' | ')}`;
 
     const llmRes = await callLLM({
@@ -1696,11 +1734,21 @@ ${task.deliverable}`;
 
     const responder = targetAgent || this.state.agents.find((a) => a.id === 'ceo');
     if (responder) {
+      const rag = this.retrieveRagContext({
+        query: message.trim(),
+        agent: responder,
+        department: responder.department,
+        topK: 3
+      });
+      const ragSection = rag.formattedContext
+        ? `\n\nRetrieved Company Knowledge (Cite relevant files/metrics if helpful):\n${rag.formattedContext}`
+        : '';
+
       const llmRes = await callLLM({
         providerConfig: this.state.providerConfig,
         agent: responder,
         systemPrompt: responder.systemPrompt,
-        userPrompt: `ACTION:DIRECT_CHAT\nCompany Mission: ${this.state.company.goal}\nFounder Message: ${message.trim()}`,
+        userPrompt: `ACTION:DIRECT_CHAT\nCompany Mission: ${this.state.company.goal}\nFounder Message: ${message.trim()}${ragSection}`,
         jsonMode: false
       });
 

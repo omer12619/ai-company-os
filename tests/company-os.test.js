@@ -2,6 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const http = require('node:http');
 const { app, engine } = require('../server/index');
+const { retrieveContext } = require('../server/rag-retriever');
 
 function requestJson(baseUrl, method, urlPath, body) {
   return new Promise((resolve, reject) => {
@@ -131,4 +132,53 @@ test('runBrowserUseDomAudit inspects real HTML and returns domAuditScore', () =>
   assert.ok(result.domAuditScore >= 0 && result.domAuditScore <= 100);
   assert.ok(Array.isArray(result.domNodes));
   assert.equal(result.domNodes.length, 5);
+});
+
+test('BM25 + Graph RAG retriever ranks relevant workspace & wiki chunks', async () => {
+  const sampleState = {
+    workspaceFiles: [
+      {
+        filename: 'billing_schema.sql',
+        department: 'Engineering',
+        content: 'CREATE TABLE stripe_subscriptions (id UUID PRIMARY KEY, mrr_cents INT NOT NULL, plan_tier TEXT);'
+      },
+      {
+        filename: 'gtm_copy.md',
+        department: 'Marketing',
+        content: 'Launch social ad campaign for B2B workflow automation teams.'
+      }
+    ],
+    memoryWiki: [],
+    cognitiveMemory: {
+      knowledgeGraph: [
+        { subject: 'Stripe Webhook', predicate: 'UPDATES', object: 'stripe_subscriptions.mrr_cents', department: 'Engineering', confidence: 0.98 }
+      ]
+    }
+  };
+
+  const res = retrieveContext({
+    state: sampleState,
+    query: 'stripe subscriptions mrr_cents schema',
+    department: 'Engineering',
+    topK: 2
+  });
+  assert.ok(res.hits.length >= 1);
+  assert.equal(res.hits[0].sourceName, 'billing_schema.sql');
+  assert.ok(res.formattedContext.includes('stripe_subscriptions'));
+
+  const server = await new Promise((resolve) => {
+    const s = app.listen(0, '127.0.0.1', () => resolve(s));
+  });
+  try {
+    const port = server.address().port;
+    const apiRes = await requestJson(`http://127.0.0.1:${port}`, 'POST', '/api/rag/query', {
+      query: 'architecture schema event bus',
+      topK: 3
+    });
+    assert.equal(apiRes.status, 200);
+    assert.equal(apiRes.body.ok, true);
+    assert.ok(apiRes.body.totalChunksIndexed > 0);
+  } finally {
+    await new Promise((resolve) => server.close(resolve));
+  }
 });

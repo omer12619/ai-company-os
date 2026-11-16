@@ -354,6 +354,12 @@ app.post('/api/memory/consolidate', (req, res) => {
   res.json({ state: safeState(), memory });
 });
 
+app.post('/api/rag/query', (req, res) => {
+  const { query = '', department = null, topK = 4 } = req.body || {};
+  const result = engine.retrieveRagContext({ query: String(query), department, topK: Math.min(10, Math.max(1, Number(topK) || 4)) });
+  res.json({ ok: true, ...result });
+});
+
 app.post('/api/evals/run', (req, res) => {
   const evalResult = engine.runCompanyEvalBenchmark();
   res.json({ state: safeState(), evalResult });
