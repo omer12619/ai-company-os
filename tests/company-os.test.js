@@ -103,7 +103,15 @@ test('HTTP API smoke tests (/api/state, /live-product/api/health, /api/mcp, 404 
 });
 
 test('runBrowserUseDomAudit inspects real HTML and returns domAuditScore', () => {
+  const prevMrr = engine.state.company.mrr;
+  const prevCust = engine.state.company.customersCount;
   const result = engine.runBrowserUseDomAudit();
+  if (engine.diskFlushTimer) {
+    clearTimeout(engine.diskFlushTimer);
+    engine.diskFlushTimer = null;
+  }
+  engine.state.company.mrr = prevMrr;
+  engine.state.company.customersCount = prevCust;
   assert.equal(result.ok, true);
   assert.equal(typeof result.domAuditScore, 'number');
   assert.ok(result.domAuditScore >= 0 && result.domAuditScore <= 100);

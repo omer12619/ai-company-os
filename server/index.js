@@ -89,9 +89,21 @@ app.get('/api/stream', (req, res) => {
   res.setHeader('Connection', 'keep-alive');
   res.flushHeaders?.();
   engine.addSSEClient(res);
-  req.on('close', () => {
+  const keepAlive = setInterval(() => {
+    try {
+      res.write(': heartbeat\n\n');
+    } catch {
+      clearInterval(keepAlive);
+      engine.removeSSEClient(res);
+    }
+  }, 25000);
+  keepAlive.unref?.();
+  const cleanup = () => {
+    clearInterval(keepAlive);
     engine.removeSSEClient(res);
-  });
+  };
+  req.on('close', cleanup);
+  res.on('error', cleanup);
 });
 
 app.get('/api/company/export', (req, res) => {
