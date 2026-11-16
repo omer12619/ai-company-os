@@ -101,3 +101,12 @@ test('HTTP API smoke tests (/api/state, /live-product/api/health, /api/mcp, 404 
     await new Promise((resolve) => server.close(resolve));
   }
 });
+
+test('runBrowserUseDomAudit inspects real HTML and returns domAuditScore', () => {
+  const result = engine.runBrowserUseDomAudit();
+  assert.equal(result.ok, true);
+  assert.equal(typeof result.domAuditScore, 'number');
+  assert.ok(result.domAuditScore >= 0 && result.domAuditScore <= 100);
+  assert.ok(Array.isArray(result.domNodes));
+  assert.equal(result.domNodes.length, 5);
+});

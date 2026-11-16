@@ -2883,14 +2883,46 @@ metric_gain: "+${variantBetaScore - variantAlphaScore}% QA & Schema Fidelity"
 
   runBrowserUseDomAudit() {
     const htmlFile = (this.state.workspaceFiles || []).find((f) => f.filename.endsWith('_landing.html')) || {
-      filename: 'nexus_saas_landing.html'
+      filename: 'nexus_saas_landing.html',
+      content: ''
     };
+    let htmlContent = htmlFile.content || '';
+    if (!htmlContent && htmlFile.filename) {
+      const diskPath = path.join(WORKSPACE_DIR, htmlFile.filename);
+      if (fs.existsSync(diskPath)) {
+        htmlContent = fs.readFileSync(diskPath, 'utf8');
+      }
+    }
+
+    const hasTitle = /<title>[^<]+<\/title>/i.test(htmlContent);
+    const hasMetaDesc = /<meta[^>]+name=["']description["'][^>]*>/i.test(htmlContent);
+    const hasH1 = /<h1[^>]*>[\s\S]*?<\/h1>/i.test(htmlContent);
+    const buttonCount = (htmlContent.match(/<(button|a\b[^>]*class=["'][^"']*cta[^"']*["'])/gi) || []).length;
+    const hasNav = /<nav[\s>]/i.test(htmlContent);
+    const hasFooter = /<footer[\s>]/i.test(htmlContent);
+
+    const patchedFields = [];
+    if (htmlContent && !hasMetaDesc && /<\/head>/i.test(htmlContent)) {
+      const descTag = `  <meta name="description" content="${this.state.company?.name || 'AI Company OS'} — ${this.state.company?.theme || 'Autonomous AI SaaS'}">\n`;
+      htmlContent = htmlContent.replace(/<\/head>/i, `${descTag}</head>`);
+      this.writeWorkspaceArtifact({
+        filename: htmlFile.filename,
+        department: 'Marketing',
+        author: 'Browser-Use Visual DOM Agent',
+        content: htmlContent
+      });
+      patchedFields.push('meta[name="description"]');
+    }
+
+    const checksPassed = [hasTitle, hasMetaDesc || patchedFields.length > 0, hasH1, buttonCount > 0, hasNav, hasFooter].filter(Boolean).length;
+    const domAuditScore = Math.round((checksPassed / 6) * 100);
+
     const domNodes = [
-      { ref: 1, tag: 'nav.navbar', label: 'Top Navigation & Trust Header', x: 8, y: 6, w: 84, h: 11, status: 'VERIFIED_ARIA' },
-      { ref: 2, tag: 'h1.hero-headline', label: 'Value Prop Hero Headline', x: 12, y: 22, w: 76, h: 18, status: 'CRO_OPTIMIZED' },
-      { ref: 3, tag: 'button#cta-primary', label: 'Primary Stripe Checkout CTA', x: 24, y: 45, w: 52, h: 13, status: 'HIGH_CONTRAST_LOCKED' },
-      { ref: 4, tag: 'section.pricing-grid', label: '3-Tier SaaS Pricing Matrix', x: 10, y: 63, w: 80, h: 20, status: 'ANCHOR_TIER_HIGHLIGHTED' },
-      { ref: 5, tag: 'footer.soc2-badge', label: 'SOC2 Type II & Uptime Proof', x: 16, y: 86, w: 68, h: 9, status: 'TRUST_SIGNAL_ACTIVE' }
+      { ref: 1, tag: 'nav.navbar', label: hasNav ? 'Top Navigation (<nav> verified)' : 'Top Header (add <nav> landmark)', x: 8, y: 6, w: 84, h: 11, status: hasNav ? 'VERIFIED_ARIA' : 'NEEDS_LANDMARK' },
+      { ref: 2, tag: 'h1.hero-headline', label: hasH1 ? 'Value Prop <h1> Headline' : 'Hero Headline (missing <h1>)', x: 12, y: 22, w: 76, h: 18, status: hasH1 ? 'CRO_OPTIMIZED' : 'MISSING_H1' },
+      { ref: 3, tag: 'button#cta-primary', label: `Primary Checkout CTA (${buttonCount} interactive triggers)`, x: 24, y: 45, w: 52, h: 13, status: buttonCount > 0 ? 'HIGH_CONTRAST_LOCKED' : 'NO_CTA_FOUND' },
+      { ref: 4, tag: 'head>meta[description]', label: patchedFields.length ? 'Auto-Patched SEO Meta Description' : hasMetaDesc ? 'SEO Meta Description Verified' : 'Meta Description Check', x: 10, y: 63, w: 80, h: 20, status: (hasMetaDesc || patchedFields.length) ? 'SEO_VERIFIED' : 'PATCH_SUGGESTED' },
+      { ref: 5, tag: 'footer.soc2-badge', label: hasFooter ? 'Footer & Trust Signals Verified' : 'Footer Landmark Check', x: 16, y: 86, w: 68, h: 9, status: hasFooter ? 'TRUST_SIGNAL_ACTIVE' : 'NEEDS_FOOTER' }
     ];
 
     const newCustomers = Math.floor(4 + Math.random() * 5);
@@ -2906,7 +2938,8 @@ metric_gain: "+${variantBetaScore - variantAlphaScore}% QA & Schema Fidelity"
     const cmo = this.state.agents.find((a) => a.id === 'cmo') || this.state.agents[0];
     const qa = this.state.agents.find((a) => a.id === 'qa') || this.state.agents[0];
 
-    const summary = `Browser-Use Computer-Use Agent inspected 5 DOM bounding boxes on ${htmlFile.filename} -> Auto-patched CTA contrast & pricing anchor -> +1.8% CVR lift (+${newCustomers} customers, +$${mrrAdded}/mo MRR)!`;
+    const patchNote = patchedFields.length ? `Auto-patched ${patchedFields.join(', ')}` : 'All core DOM/SEO tags verified';
+    const summary = `Browser-Use DOM Agent parsed ${htmlFile.filename} (DOM Score: ${domAuditScore}%, ${buttonCount} CTAs) -> ${patchNote} -> +${newCustomers} customers, +$${mrrAdded}/mo MRR!`;
 
     this.recordOtelSpan({
       operationName: 'browser_use.visual_dom_audit (/live-product)',
@@ -2945,6 +2978,8 @@ metric_gain: "+${variantBetaScore - variantAlphaScore}% QA & Schema Fidelity"
     return {
       ok: true,
       targetFile: htmlFile.filename,
+      domAuditScore,
+      patchedFields,
       domNodes,
       newCustomers,
       mrrAdded,

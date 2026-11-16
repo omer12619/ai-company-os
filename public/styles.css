@@ -1553,6 +1553,32 @@ body {
   }
 }
 
+@media (max-width: 640px) {
+  .topbar {
+    padding: 10px 12px;
+    gap: 10px;
+  }
+  .brand-title-row {
+    gap: 5px;
+  }
+  .provider-pill {
+    font-size: 0.7rem;
+    padding: 3px 7px;
+  }
+  .controls-section {
+    width: 100%;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
+  .kpi-grid {
+    grid-template-columns: 1fr;
+    padding: 10px 12px;
+  }
+  .workspace-grid {
+    padding: 0 12px 14px;
+  }
+}
+
 /* ============================================================================
    FUTURISTIC HOLO-HUD & ANIMATED VIRTUAL OFFICE FLOORPLAN STYLES
    ============================================================================ */

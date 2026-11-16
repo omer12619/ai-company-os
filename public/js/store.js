@@ -151,6 +151,51 @@
 
   window.MotionTierS = MotionTierS;
 
+  // React 18 ErrorBoundary so a single studio/widget exception never blanks the OS
+  if (typeof window !== 'undefined' && window.React) {
+    class ReactErrorBoundary extends window.React.Component {
+      constructor(props) {
+        super(props);
+        this.state = { hasError: false, message: '' };
+      }
+      static getDerivedStateFromError(error) {
+        return { hasError: true, message: error?.message || 'Unexpected render error' };
+      }
+      componentDidCatch(error) {
+        console.error(`ReactErrorBoundary (${this.props.label || 'Studio'}):`, error);
+      }
+      render() {
+        if (this.state.hasError) {
+          return window.React.createElement(
+            'div',
+            {
+              style: {
+                padding: '16px',
+                borderRadius: '10px',
+                border: '1px solid rgba(239, 68, 68, 0.45)',
+                background: 'rgba(127, 29, 29, 0.25)',
+                color: '#fecaca',
+                fontSize: '0.85rem'
+              }
+            },
+            `⚠️ ${this.props.label || 'Component'} recovered from an error: ${this.state.message} `,
+            window.React.createElement(
+              'button',
+              {
+                className: 'btn btn-sm btn-secondary',
+                style: { marginLeft: '10px' },
+                onClick: () => this.setState({ hasError: false, message: '' })
+              },
+              '↻ Retry'
+            )
+          );
+        }
+        return this.props.children;
+      }
+    }
+    window.ReactErrorBoundary = ReactErrorBoundary;
+  }
+
   // Automatically attach S-Tier WAAPI spring physics when modals or toasts appear
   if (typeof window !== 'undefined' && typeof MutationObserver !== 'undefined') {
     window.addEventListener('DOMContentLoaded', () => {

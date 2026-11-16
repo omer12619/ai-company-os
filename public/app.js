@@ -318,73 +318,96 @@ function renderAll() {
 // Paperclip Per-Agent Budget Telemetry, & GitHub Ecosystem Hub)
 // ============================================================================
 
+function safeMountReact(rootRef, el, label, Component, props) {
+  if (!el || !Component) return rootRef;
+  const h = React.createElement;
+  const nextRoot = rootRef || ReactDOM.createRoot(el);
+  const child = h(Component, props);
+  const wrapped = window.ReactErrorBoundary
+    ? h(window.ReactErrorBoundary, { label }, child)
+    : child;
+  nextRoot.render(wrapped);
+  return nextRoot;
+}
+
 function renderReactComponents() {
   if (!window.React || !window.ReactDOM || !appState) return;
-  const h = React.createElement;
 
   // 0. React 60fps Animated Virtual Office Simulation Component (only when on Org tab & office mode)
   if (activeTabId === 'org' && orgViewMode === 'office') {
-    const officeEl = document.getElementById('reactVirtualOfficeRoot');
-    if (officeEl && window.VirtualOfficeComponent) {
-      if (!reactOfficeRoot) reactOfficeRoot = ReactDOM.createRoot(officeEl);
-      reactOfficeRoot.render(h(window.VirtualOfficeComponent, { state: appState }));
-    }
+    reactOfficeRoot = safeMountReact(
+      reactOfficeRoot,
+      document.getElementById('reactVirtualOfficeRoot'),
+      'Virtual Office',
+      window.VirtualOfficeComponent,
+      { state: appState }
+    );
   }
 
   // 1. React Interactive SVG Node-Graph Component (only when on Org tab & graph mode)
   if (activeTabId === 'org' && orgViewMode === 'graph') {
-    const graphEl = document.getElementById('reactNodeGraphRoot');
-    if (graphEl) {
-      if (!reactGraphRoot) reactGraphRoot = ReactDOM.createRoot(graphEl);
-      reactGraphRoot.render(h(InteractiveOrgGraphComponent, { state: appState }));
-    }
+    reactGraphRoot = safeMountReact(
+      reactGraphRoot,
+      document.getElementById('reactNodeGraphRoot'),
+      'Org Node-Graph',
+      InteractiveOrgGraphComponent,
+      { state: appState }
+    );
   }
 
   // 2. React IDE Workspace & Markdown Artifact Explorer Component
   if (activeTabId === 'workspace') {
-    const wsEl = document.getElementById('reactWorkspaceRoot');
-    if (wsEl) {
-      if (!reactWorkspaceRoot) reactWorkspaceRoot = ReactDOM.createRoot(wsEl);
-      reactWorkspaceRoot.render(h(WorkspaceExplorerComponent, {
+    reactWorkspaceRoot = safeMountReact(
+      reactWorkspaceRoot,
+      document.getElementById('reactWorkspaceRoot'),
+      'Workspace IDE',
+      WorkspaceExplorerComponent,
+      {
         files: appState.workspaceFiles || [],
         wiki: appState.memoryWiki || []
-      }));
-    }
+      }
+    );
   }
 
   // 3. React CFO Telemetry & Paperclip Agent Budget Cap Component
   if (activeTabId === 'finance') {
-    const finEl = document.getElementById('reactAnalyticsRoot');
-    if (finEl) {
-      if (!reactAnalyticsRoot) reactAnalyticsRoot = ReactDOM.createRoot(finEl);
-      reactAnalyticsRoot.render(h(CFOAnalyticsComponent, { state: appState }));
-    }
+    reactAnalyticsRoot = safeMountReact(
+      reactAnalyticsRoot,
+      document.getElementById('reactAnalyticsRoot'),
+      'FinOps Analytics',
+      CFOAnalyticsComponent,
+      { state: appState }
+    );
   }
 
   // 4. React GitHub Open-Source Stack & Portable Company Pack Manager
   if (activeTabId === 'github') {
-    const ghEl = document.getElementById('reactGitHubRoot');
-    if (ghEl) {
-      if (!reactGitHubRoot) reactGitHubRoot = ReactDOM.createRoot(ghEl);
-      reactGitHubRoot.render(h(GitHubEcosystemComponent, {
+    reactGitHubRoot = safeMountReact(
+      reactGitHubRoot,
+      document.getElementById('reactGitHubRoot'),
+      'GitHub Ecosystem',
+      GitHubEcosystemComponent,
+      {
         repos: githubIntegrations,
         state: appState
-      }));
-    }
+      }
+    );
   }
 
   // 5. React Smart Tool & Script Router Studio
   if (activeTabId === 'hermes') {
-    const trEl = document.getElementById('reactToolRouterRoot');
-    if (trEl) {
-      if (!reactToolRouterRoot) reactToolRouterRoot = ReactDOM.createRoot(trEl);
-      reactToolRouterRoot.render(h(ToolRouterStudioComponent, {
+    reactToolRouterRoot = safeMountReact(
+      reactToolRouterRoot,
+      document.getElementById('reactToolRouterRoot'),
+      'Tool Router Studio',
+      ToolRouterStudioComponent,
+      {
         tools: toolRegistry,
         mcpServers: mcpServersCatalog,
         a2aCards: a2aCardsCatalog,
         state: appState
-      }));
-    }
+      }
+    );
   }
 }
 
