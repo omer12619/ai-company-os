@@ -373,6 +373,51 @@ app.post('/api/evals/run', (req, res) => {
   res.json({ state: safeState(), evalResult });
 });
 
+app.get('/api/evals/leaderboard', (req, res) => {
+  res.json({ ok: true, leaderboard: engine.getModelRoleLeaderboard() });
+});
+
+app.post('/api/evals/auto-optimize', (req, res) => {
+  const result = engine.autoOptimizeAgentModels();
+  res.json({ ...result, state: safeState() });
+});
+
+app.post('/api/pipeline/parallel-sprint', asyncHandler(async (req, res) => {
+  const result = await engine.runParallelDepartmentSprint();
+  res.json({ ...result, state: safeState() });
+}));
+
+app.get('/api/workspace/history/:filename', (req, res) => {
+  const history = engine.getWorkspaceFileHistory(req.params.filename);
+  res.json({ ok: true, history });
+});
+
+app.post('/api/workspace/rollback', (req, res) => {
+  const { filename, versionIndex } = req.body || {};
+  const result = engine.rollbackWorkspaceFile({ filename, versionIndex });
+  res.json({ ...result, state: safeState() });
+});
+
+app.post('/api/company/maintenance', (req, res) => {
+  const result = engine.runAutonomousMaintenance();
+  res.json({ ...result, state: safeState() });
+});
+
+app.get('/api/webhooks', (req, res) => {
+  res.json({ ok: true, webhooks: safeState().webhooks || [] });
+});
+
+app.post('/api/webhooks/add', (req, res) => {
+  const hook = engine.configureWebhook(req.body || {});
+  res.json({ ok: true, webhook: hook, state: safeState() });
+});
+
+app.post('/api/webhooks/test', asyncHandler(async (req, res) => {
+  const { event = 'test_ping', payload = { message: 'AI Company OS webhook test' } } = req.body || {};
+  const result = await engine.dispatchWebhookEvent(event, payload);
+  res.json(result);
+}));
+
 // v12: Live LLM API connection test (verify key + latency before running pipeline)
 app.post('/api/providers/test', asyncHandler(async (req, res) => {
   const { providerKey, model, apiKey, baseUrl } = req.body || {};
@@ -444,6 +489,15 @@ app.get('/live-product/api/pricing', (req, res) => {
   } catch {
     res.json({ tiers: [] });
   }
+});
+
+app.all('/live-product/api/services/:name', (req, res) => {
+  const result = engine.invokeWorkspaceEndpoint(req.params.name, {
+    method: req.method,
+    query: req.query,
+    body: req.body
+  });
+  res.status(result.status || 200).json(result);
 });
 
 app.post('/api/product/simulate-traffic', (req, res) => {

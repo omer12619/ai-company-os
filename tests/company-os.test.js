@@ -285,3 +285,53 @@ test('runInIsolatedSandbox creates per-task directory and cleans up on completio
   await new Promise((r) => setTimeout(r, 40));
   assert.equal(fs.existsSync(capturedDir), false);
 });
+
+test('6 new CompanyEngine methods (rollback, leaderboard, webhook masking, microservice sandbox, maintenance)', async () => {
+  const fs = require('fs');
+  const path = require('path');
+  const testFile = 'unit_test_service.js';
+  const testPath = path.join(__dirname, '..', 'workspace', testFile);
+
+  engine.writeWorkspaceArtifact({
+    filename: testFile,
+    department: 'Engineering',
+    author: 'Test',
+    content: 'module.exports = { executePipeline: (input) => ({ echoed: input?.body?.msg || "v1" }) };'
+  });
+  engine.writeWorkspaceArtifact({
+    filename: testFile,
+    department: 'Engineering',
+    author: 'Test',
+    content: 'module.exports = { executePipeline: (input) => ({ echoed: "v2" }) };'
+  });
+
+  const hist = engine.getWorkspaceFileHistory(testFile);
+  assert.ok(hist.length >= 1);
+  engine.rollbackWorkspaceFile({ filename: testFile, versionIndex: 0 });
+  const svcRes = engine.invokeWorkspaceEndpoint(testFile, { body: { msg: 'hello-service' } });
+  assert.equal(svcRes.ok, true);
+  assert.equal(svcRes.output.echoed, 'hello-service');
+
+  const leaderboard = engine.getModelRoleLeaderboard();
+  assert.ok(Array.isArray(leaderboard));
+
+  const hook = engine.configureWebhook({ url: 'https://example.com/hook', secret: 'my-hmac-secret' });
+  assert.equal(hook.secret, '••••');
+  assert.equal(engine.sanitizeStateForClient().webhooks[0].secret, '••••');
+
+  const maint = engine.runAutonomousMaintenance();
+  assert.equal(maint.ok, true);
+
+  // Cleanup test artifact
+  engine.state.workspaceFiles = engine.state.workspaceFiles.filter((f) => f.filename !== testFile);
+  if (engine.state.workspaceHistory) delete engine.state.workspaceHistory[testFile];
+  engine.state.webhooks = (engine.state.webhooks || []).filter((w) => w.id !== hook.id);
+  if (engine.diskFlushTimer) {
+    clearTimeout(engine.diskFlushTimer);
+    engine.diskFlushTimer = null;
+  }
+  try {
+    await new Promise((r) => setTimeout(r, 40));
+    if (fs.existsSync(testPath)) fs.unlinkSync(testPath);
+  } catch {}
+});

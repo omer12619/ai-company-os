@@ -1,5 +1,7 @@
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
+const vm = require('vm');
 const { PROVIDERS, callLLM } = require('./llm-router');
 const { retrieveContext } = require('./rag-retriever');
 const { ValidationError } = require('./validators');
@@ -83,6 +85,10 @@ class CompanyEngine {
         ...(state.providerConfig || {}),
         providers: sanitizedProviders
       },
+      webhooks: (state.webhooks || []).map((w) => ({
+        ...w,
+        secret: w.secret ? '••••' : ''
+      })),
       workspaceFiles
     };
   }
@@ -320,6 +326,18 @@ class CompanyEngine {
         .catch((err) => console.error(`Async workspace write error (${safeName}):`, err.message));
 
       const existingIdx = this.state.workspaceFiles.findIndex((f) => f.filename === safeName);
+      if (existingIdx >= 0 && this.state.workspaceFiles[existingIdx].content && this.state.workspaceFiles[existingIdx].content !== content) {
+        const prev = this.state.workspaceFiles[existingIdx];
+        this.state.workspaceHistory = this.state.workspaceHistory || {};
+        const hist = this.state.workspaceHistory[safeName] || [];
+        hist.unshift({
+          content: prev.content,
+          author: prev.author,
+          sizeBytes: prev.sizeBytes,
+          updatedAt: prev.updatedAt
+        });
+        this.state.workspaceHistory[safeName] = hist.slice(0, 4);
+      }
       const record = {
         id: `file-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`,
         filename: safeName,
@@ -693,6 +711,10 @@ class CompanyEngine {
       }
 
       this.state.company.cycleCount += 1;
+
+      if (this.state.company.cycleCount > 0 && this.state.company.cycleCount % 5 === 0) {
+        this.runAutonomousMaintenance();
+      }
 
       if (this.state.tasks.length === 0) {
         this.state.company.activePhase = 'strategy';
@@ -3205,6 +3227,268 @@ metric_gain: "+${variantBetaScore - variantAlphaScore}% QA & Schema Fidelity"
       totalMrr: this.state.company.mrr,
       summary
     };
+  }
+
+  // 1. Parallel Multi-Department Sprint Fan-Out
+  async runParallelDepartmentSprint() {
+    if (this.stepInProgress) return { skipped: true, reason: 'Step already in progress' };
+    this.stepInProgress = true;
+    try {
+      const candidates = (this.state.tasks || []).filter((t) => t.status === 'in_progress' || t.status === 'backlog');
+      const byDept = new Map();
+      for (const t of candidates) {
+        const dept = t.stage === 'primary' ? t.department : t.collaboratorDept || t.department;
+        if (!byDept.has(dept)) byDept.set(dept, t);
+        if (byDept.size >= 3) break;
+      }
+      const selected = Array.from(byDept.values());
+      if (selected.length === 0) {
+        await this.executeNextSprintPlanning();
+        this.saveState();
+        return { ok: true, executedCount: 0, departments: [], note: 'Generated new sprint tasks.' };
+      }
+
+      const started = Date.now();
+      const results = await Promise.allSettled(selected.map((t) => this.executeWorkerTaskAndHandoff(t)));
+      const succeeded = results.filter((r) => r.status === 'fulfilled').length;
+
+      this.recordOtelSpan({
+        operationName: `sprint.parallel_fanout (${selected.length} depts)`,
+        spanKind: 'SERVER',
+        agent: this.state.agents.find((a) => a.id === 'ceo'),
+        durationMs: Math.max(1, Date.now() - started),
+        status: succeeded === selected.length ? 'OK' : 'WARN',
+        detail: `Parallel fan-out executed ${succeeded}/${selected.length} tasks across ${Array.from(byDept.keys()).join(', ')}`
+      });
+
+      this.saveState();
+      return {
+        ok: true,
+        executedCount: succeeded,
+        departments: Array.from(byDept.keys())
+      };
+    } finally {
+      this.stepInProgress = false;
+    }
+  }
+
+  // 2. Per-File Version History & Rollback
+  getWorkspaceFileHistory(filename) {
+    const safeName = path.basename(String(filename || '')).replace(/[^a-zA-Z0-9._-]/g, '_');
+    return (this.state.workspaceHistory || {})[safeName] || [];
+  }
+
+  rollbackWorkspaceFile({ filename, versionIndex = 0 } = {}) {
+    const safeName = path.basename(String(filename || '')).replace(/[^a-zA-Z0-9._-]/g, '_');
+    const history = (this.state.workspaceHistory || {})[safeName] || [];
+    const target = history[versionIndex];
+    if (!target) {
+      throw new ValidationError(`No saved revision #${versionIndex} found for "${safeName}".`);
+    }
+    this.writeWorkspaceArtifact({
+      filename: safeName,
+      department: 'Engineering',
+      author: 'Rollback Guard',
+      content: target.content
+    });
+    this.logEvent({
+      type: 'SYSTEM',
+      department: 'Engineering',
+      actor: 'Workspace Rollback',
+      title: `Rolled Back ${safeName} to revision #${versionIndex}`,
+      detail: `Restored ${target.sizeBytes || target.content.length} bytes from ${target.updatedAt}`
+    });
+    this.saveState();
+    return { ok: true, filename: safeName, restoredAt: target.updatedAt };
+  }
+
+  // 3. Empirical Trajectory Leaderboard & Auto-Model Optimization
+  getModelRoleLeaderboard() {
+    const stats = new Map();
+    for (const tx of this.state.ledger || []) {
+      const dept = tx.department || 'Executive';
+      const prov = tx.provider || 'simulator';
+      const mod = tx.model || 'company-sim-v2';
+      const key = `${dept}::${prov}::${mod}`;
+      const cur = stats.get(key) || {
+        department: dept,
+        provider: prov,
+        model: mod,
+        runs: 0,
+        totalTokens: 0,
+        totalCost: 0,
+        approvedTasks: 0,
+        qaScoreSum: 0,
+        qaCount: 0
+      };
+      cur.runs += 1;
+      cur.totalTokens += Number(tx.tokens || 0);
+      cur.totalCost = Number((cur.totalCost + Number(tx.cost || 0)).toFixed(4));
+      stats.set(key, cur);
+    }
+
+    for (const t of this.state.tasks || []) {
+      if (typeof t.qaScore === 'number') {
+        const dept = t.department || 'Engineering';
+        for (const entry of stats.values()) {
+          if (entry.department === dept) {
+            entry.qaScoreSum += t.qaScore;
+            entry.qaCount += 1;
+            if (t.status === 'done') entry.approvedTasks += 1;
+          }
+        }
+      }
+    }
+
+    const rows = Array.from(stats.values()).map((r) => ({
+      department: r.department,
+      provider: r.provider,
+      model: r.model,
+      runs: r.runs,
+      totalTokens: r.totalTokens,
+      totalCost: r.totalCost,
+      avgCost: Number((r.totalCost / Math.max(1, r.runs)).toFixed(4)),
+      avgQaScore: r.qaCount > 0 ? Math.round(r.qaScoreSum / r.qaCount) : 85,
+      approvedTasks: r.approvedTasks
+    }));
+    rows.sort((a, b) => b.avgQaScore - a.avgQaScore || a.avgCost - b.avgCost);
+    return rows;
+  }
+
+  autoOptimizeAgentModels() {
+    const leaderboard = this.getModelRoleLeaderboard();
+    const updatedAgents = [];
+    for (const agent of this.state.agents || []) {
+      if (agent.status === 'fired') continue;
+      const best = leaderboard.find((r) => r.department === agent.department && r.runs >= 1);
+      if (best && best.provider !== 'simulator') {
+        agent.providerOverride = best.provider;
+        agent.modelOverride = best.model;
+        updatedAgents.push({ id: agent.id, name: agent.name, model: best.model });
+      }
+    }
+    this.logEvent({
+      type: 'FINANCE',
+      department: 'Finance',
+      actor: 'Trajectory Optimizer',
+      title: `Model Leaderboard Evaluated (${leaderboard.length} entries)`,
+      detail: updatedAgents.length
+        ? `Optimized ${updatedAgents.length} agents to top cost/QA models.`
+        : 'All agents on optimal baseline models.'
+    });
+    this.saveState();
+    return { ok: true, leaderboard, updatedAgents };
+  }
+
+  // 4. Outbound Webhooks with Optional HMAC-SHA256 Signing
+  configureWebhook({ url, events = ['circuit_breaker_tripped', 'board_proposal_pending'], secret = '' } = {}) {
+    if (typeof url !== 'string' || !/^https?:\/\//i.test(url.trim())) {
+      throw new ValidationError('Webhook "url" must start with http:// or https://.');
+    }
+    this.state.webhooks = this.state.webhooks || [];
+    const hook = {
+      id: `wh-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`,
+      url: url.trim(),
+      events: Array.isArray(events) && events.length ? events : ['*'],
+      secret: String(secret || ''),
+      enabled: true,
+      createdAt: new Date().toISOString()
+    };
+    this.state.webhooks.unshift(hook);
+    if (this.state.webhooks.length > 10) this.state.webhooks.length = 10;
+    this.saveState();
+    return { ...hook, secret: hook.secret ? '••••' : '' };
+  }
+
+  async dispatchWebhookEvent(eventName, payload = {}) {
+    const hooks = (this.state.webhooks || []).filter(
+      (h) => h.enabled && (h.events.includes('*') || h.events.includes(eventName))
+    );
+    if (hooks.length === 0) return { ok: true, delivered: 0 };
+
+    const body = JSON.stringify({
+      event: eventName,
+      company: this.state.company?.name,
+      timestamp: new Date().toISOString(),
+      payload
+    });
+
+    const deliveries = await Promise.allSettled(
+      hooks.map((h) => {
+        const headers = { 'Content-Type': 'application/json', 'X-AI-Company-Event': eventName };
+        if (h.secret) {
+          headers['X-AI-Company-Signature'] = `sha256=${crypto.createHmac('sha256', h.secret).update(body).digest('hex')}`;
+        }
+        return fetch(h.url, {
+          method: 'POST',
+          headers,
+          body,
+          signal: AbortSignal.timeout(5000)
+        });
+      })
+    );
+    const delivered = deliveries.filter((d) => d.status === 'fulfilled' && d.value?.ok).length;
+    return { ok: true, delivered, total: hooks.length };
+  }
+
+  // 5. Sandboxed Live Microservice Invocation (/live-product/api/services/:name)
+  invokeWorkspaceEndpoint(serviceName, inputPayload = {}) {
+    const safeName = path.basename(String(serviceName || '')).replace(/[^a-zA-Z0-9._-]/g, '_');
+    const targetFile = safeName.endsWith('.js') ? safeName : `${safeName}.js`;
+    const diskPath = path.join(WORKSPACE_DIR, targetFile);
+    const memFile = (this.state.workspaceFiles || []).find((f) => f.filename === targetFile);
+    const code = memFile?.content || (fs.existsSync(diskPath) ? fs.readFileSync(diskPath, 'utf8') : null);
+
+    if (!code) {
+      return { ok: false, status: 404, error: `Service "${targetFile}" not found in /workspace.` };
+    }
+
+    try {
+      const moduleObj = { exports: {} };
+      const sandbox = {
+        module: moduleObj,
+        exports: moduleObj.exports,
+        console: { log: () => {}, warn: () => {}, error: () => {} },
+        Buffer,
+        Date,
+        Math,
+        JSON
+      };
+      vm.runInNewContext(code, sandbox, { timeout: 1200 });
+      const exported = sandbox.module.exports || sandbox.exports;
+      const handler = typeof exported === 'function'
+        ? exported
+        : typeof exported?.executePipeline === 'function'
+          ? exported.executePipeline
+          : typeof exported?.handler === 'function'
+            ? exported.handler
+            : null;
+      const output = handler ? handler(inputPayload) : exported;
+      return { ok: true, status: 200, service: targetFile, output };
+    } catch (err) {
+      return { ok: false, status: 500, service: targetFile, error: err.message };
+    }
+  }
+
+  // 6. Autonomous Maintenance Heartbeat (Test -> Auto-Heal -> Consolidate Memory)
+  runAutonomousMaintenance() {
+    const testRes = this.runAllTests();
+    let healRes = null;
+    if (testRes && testRes.failed > 0) {
+      healRes = this.runSelfHealingCodeDebugger();
+    }
+    const memRes = this.consolidateCognitiveMemory();
+    this.logEvent({
+      type: 'SYSTEM',
+      department: 'QA',
+      actor: 'Autonomous Maintenance Heartbeat',
+      title: `Maintenance Cycle Complete (${testRes?.passed || 0}/${testRes?.total || 0} tests passing)`,
+      detail: healRes
+        ? `Auto-healed failing modules & consolidated ${memRes?.knowledgeGraph?.length || 0} KG triples.`
+        : `All checks green; consolidated ${memRes?.knowledgeGraph?.length || 0} KG triples.`
+    });
+    this.saveState();
+    return { ok: true, testRes, healRes, triplesCount: memRes?.knowledgeGraph?.length || 0 };
   }
 }
 
