@@ -2137,3 +2137,136 @@ button.provider-pill:focus-visible {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ============================================================================
+   DITHER UI SYSTEM (ditherui.dev-inspired Motion-First Building Blocks)
+   Global pixel-dither textures, corner reticles, spring buttons & pixel loaders
+   ============================================================================ */
+body {
+  background-image:
+    radial-gradient(rgba(148, 163, 184, 0.07) 1px, transparent 1px),
+    radial-gradient(circle at 12% 10%, rgba(99, 102, 241, 0.12), transparent 36%),
+    radial-gradient(circle at 88% 14%, rgba(56, 189, 248, 0.10), transparent 36%);
+  background-size: 16px 16px, 100% 100%, 100% 100%;
+}
+
+.kpi-card,
+.main-panel,
+.side-panel,
+.modal-card,
+.dither-card {
+  position: relative;
+  background-image: radial-gradient(rgba(148, 163, 184, 0.055) 1px, transparent 1px);
+  background-size: 8px 8px;
+}
+
+.dither-card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  background-color: var(--bg-card);
+  will-change: transform;
+  transition: transform 0.24s cubic-bezier(0.34, 1.56, 0.64, 1), border-color 0.2s ease;
+}
+
+.dither-card:hover {
+  transform: translate3d(0, -2px, 0);
+  border-color: rgba(56, 189, 248, 0.55);
+}
+
+.dither-corner {
+  position: absolute;
+  width: 7px;
+  height: 7px;
+  border-color: rgba(56, 189, 248, 0.45);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.2s ease, transform 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.dither-card:hover .dither-corner {
+  opacity: 1;
+}
+
+.dither-corner-tl { top: 4px; left: 4px; border-top: 1.5px solid; border-left: 1.5px solid; }
+.dither-corner-tr { top: 4px; right: 4px; border-top: 1.5px solid; border-right: 1.5px solid; }
+.dither-corner-bl { bottom: 4px; left: 4px; border-bottom: 1.5px solid; border-left: 1.5px solid; }
+.dither-corner-br { bottom: 4px; right: 4px; border-bottom: 1.5px solid; border-right: 1.5px solid; }
+
+.dither-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.dither-card-title {
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.btn,
+.provider-pill,
+.tab-btn,
+.theme-chip {
+  will-change: transform;
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.18s ease, border-color 0.18s ease;
+}
+
+.btn:hover:not(:disabled),
+.provider-pill:hover,
+.theme-chip:hover {
+  transform: translate3d(0, -1px, 0) scale3d(1.02, 1.02, 1);
+}
+
+.btn:active:not(:disabled),
+.provider-pill:active,
+.tab-btn:active,
+.theme-chip:active {
+  transform: translate3d(0, 0, 0) scale3d(0.96, 0.96, 1);
+}
+
+.dither-citation-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-family: 'JetBrains Mono', monospace;
+  background: rgba(15, 23, 42, 0.85);
+  color: #e2e8f0;
+  border: 1px solid rgba(56, 189, 248, 0.38);
+  cursor: pointer;
+}
+
+.dither-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 1px;
+  background: #38bdf8;
+}
+
+.dither-pixel-loader .dither-pixel-cell {
+  border-radius: 1px;
+  opacity: 0.28;
+  transform: scale3d(0.75, 0.75, 1);
+  will-change: transform, opacity;
+}
+
+.dither-pixel-loader.is-active .dither-pixel-cell {
+  animation: ditherPixelPulse 0.9s ease-in-out infinite alternate;
+}
+
+@keyframes ditherPixelPulse {
+  0% {
+    opacity: 0.22;
+    transform: scale3d(0.65, 0.65, 1);
+  }
+  100% {
+    opacity: 1;
+    transform: scale3d(1, 1, 1);
+  }
+}

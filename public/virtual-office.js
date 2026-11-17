@@ -805,7 +805,19 @@
             className: 'hud-live-pill',
             title: 'Motion.dev S-Tier GPU Compositor Engine: animations use hardware-accelerated transform & opacity layers',
             style: { background: 'rgba(56, 189, 248, 0.14)', color: '#38bdf8', border: '1px solid rgba(56, 189, 248, 0.35)' }
-          }, '⚡ Motion S-Tier GPU')
+          }, '⚡ Motion S-Tier GPU'),
+          window.DitherUI && h('span', {
+            className: 'hud-live-pill',
+            title: 'Dither UI Motion-First React Building Blocks + Live RAG Citations',
+            style: { display: 'inline-flex', alignItems: 'center', gap: '6px', background: 'rgba(168, 85, 247, 0.14)', color: '#c084fc', border: '1px solid rgba(168, 85, 247, 0.38)' }
+          },
+            h(window.DitherUI.DitherPixelLoader, { active: Boolean(state.company?.isRunning), size: 12, color: '#c084fc' }),
+            'Dither UI',
+            state.lastRagRetrieval?.sources?.[0] && h(window.DitherUI.DitherCitationPill, {
+              source: state.lastRagRetrieval.sources[0].sourceName,
+              score: state.lastRagRetrieval.sources[0].score
+            })
+          )
         ),
         h('div', { className: 'office-hud-actions' },
           h('button', {
