@@ -107,8 +107,11 @@ flowchart TD
 * **📊 2D Competitor Market Radar & FinOps Burn-vs-MRR Chart**: Interactive SVG bubble radar (Feature Velocity vs. Market Share) and CFO cash runway trajectory with one-click competitive blitz maneuvers.
 * **🐙 OpenHands / SWE-Agent ACI Studio & Live GitHub Auto-Push**: Async non-blocking `git add`, `commit`, and `push` directly from the UI to `github.com/omer12619/ai-company-os`.
 * **📚 Zero-Dependency BM25 + Knowledge-Graph Hybrid RAG**: Indexes `/workspace` files, `memoryWiki`, and Knowledge Graph triples (`server/rag-retriever.js`) with `<retrieved_context data-untrusted="true">` prompt-injection isolation and `POST /api/rag/query`.
-* **⚡ Motion.dev S-Tier GPU Compositor Animations & Accessibility**: Hardware-accelerated `transform`/`opacity`/WAAPI animations (`MotionTierS`), React 18 `ErrorBoundary` isolation, keyboard-accessible `<button>` controls, and `@media (prefers-reduced-motion: reduce)` support.
-* **🛡️ Production Hardening**: Server-side API key masking (`hasKey` / `apiKeyMasked`), HTTP security headers & `/live-product` XSS escaping, Gzip API compression + slim SSE payloads, contract-first `400` input validation, `AbortSignal` LLM timeouts, re-entrancy pipeline mutex, and a real-time **FinOps Spend Circuit Breaker**.
+* **📜 `AGENTS.md` Agent Constitution & Smart Model Arbitrage**: Auto-loads `AGENTS.md` harness rules into system prompts, escalates to flagship models on QA retries (`taskAttempts >= 2`), and downshifts to economy models when remaining budget drops $\le 15\%$.
+* **⚡ Real-Time SSE Token Streaming & Per-Task Sandboxes**: Streams live `llm_delta` tokens (`stream: true`) into the HUD ticker (`#liveStreamTicker`) and stages tasks inside isolated `workspace/.sandboxes/<taskId>` directories.
+* **🎨 Dither UI (`ditherui.dev`) + Motion.dev S-Tier GPU Compositor**: Pixel-dither card textures, animated corner reticles, `DitherPixelLoader`, `DitherCitationPill`, hardware-accelerated `transform`/`opacity`/WAAPI animations (`MotionTierS`), React 18 `ErrorBoundary` isolation, keyboard-accessible `<button>` controls, and `@media (prefers-reduced-motion: reduce)`.
+* **⚙️ Autonomous Ops & Governance**: Typed HITL `responseSchema` Board Inbox gates, parallel multi-department sprint fan-out (`POST /api/pipeline/parallel-sprint`), per-file version history & rollback (`POST /api/workspace/rollback`), empirical model-role trajectory leaderboard (`GET /api/evals/leaderboard`), HMAC-SHA256 outbound webhooks (`/api/webhooks/*`), sandboxed live microservice mounting (`ALL /live-product/api/services/:name`), and a 5-cycle autonomous maintenance heartbeat (`POST /api/company/maintenance`).
+* **🛡️ Production Hardening**: Server-side API key & webhook secret masking, HTTP security headers & `/live-product` XSS escaping, Gzip API compression + slim SSE payloads, contract-first `400` input validation, `AbortSignal` LLM timeouts, re-entrancy pipeline mutex, and a real-time **FinOps Spend Circuit Breaker**.
 
 ---
 
@@ -147,7 +150,7 @@ npm install
 # Start the OS server
 npm start
 
-# Run the automated test suite (node --test)
+# Run the automated test suite (node --test, 9/9 passing)
 npm test
 ```
 
@@ -174,26 +177,28 @@ http://127.0.0.1:3456
 
 ```
 ai-company-os/
+├── AGENTS.md                     # Agentic AI Foundation constitutional rules for all agents
 ├── server/
 │   ├── index.js                  # Express API server, Gzip, SSE, security headers & REST/MCP endpoints
-│   ├── company-engine.js         # Autonomous company state machine, mutex & lifecycle
+│   ├── company-engine.js         # Autonomous company state machine, mutex, arbitrage, webhooks & lifecycle
 │   ├── company-catalogs.js       # Provider, template, MCP & OWASP static catalogs
 │   ├── rag-retriever.js          # Zero-dependency BM25 + Knowledge-Graph Hybrid RAG engine
 │   ├── validators.js             # Contract-first HTTP payload validators (400 Bad Request)
 │   ├── tool-executor.js          # Sandbox tool runner, OWASP firewall & evals
-│   └── llm-router.js             # Universal multi-provider LLM router with AbortSignal timeouts
+│   └── llm-router.js             # Universal multi-provider LLM router, SSE streaming & AbortSignal timeouts
 ├── public/
-│   ├── index.html                # Main OS dashboard, modals & accessible HUD controls
-│   ├── styles.css                # Futuristic themes, S-Tier GPU compositor keyframes & reduced-motion
+│   ├── index.html                # Main OS dashboard, modals, live stream ticker & accessible HUD controls
+│   ├── styles.css                # Dither UI textures, S-Tier GPU compositor keyframes & reduced-motion
 │   ├── app.js                    # Core frontend client, Omni-palette & React 18 ErrorBoundary mounts
 │   ├── virtual-office.js         # React + SVG 2.5D virtual office & Browser-Use DOM overlay
 │   └── js/
 │       ├── store.js              # Reactive CompanyStore, MotionTierS WAAPI & ReactErrorBoundary
 │       └── components/
+│           ├── DitherUI.js       # Dither UI motion-first React blocks (PixelLoader, Card, CitationPill)
 │           ├── ReactStudios.js   # Workspace IDE, FinOps, Tool Router & Org Graph studios
 │           └── FrontierModals.js # Voice Walkie-Talkie, Market Radar & GitHub Sync modals
 ├── tests/
-│   └── company-os.test.js        # Built-in node --test unit & HTTP integration suite
+│   └── company-os.test.js        # Built-in node --test unit & HTTP integration suite (9 tests)
 ├── workspace/                    # Generated microservices, tests, SQL & landing funnels
 └── data/
     └── company-state.json        # Persistent company state & snapshot ledger (gitignored)
