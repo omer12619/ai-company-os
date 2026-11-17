@@ -276,13 +276,15 @@ async function callLLM({
         headers['X-Title'] = 'AI Company OS';
       }
 
+      const useStream = typeof onTokenDelta === 'function' && !jsonMode;
       const payload = {
         model,
         messages: [
           { role: 'system', content: compressedSys },
           { role: 'user', content: compressedUser }
         ],
-        temperature
+        temperature,
+        ...(useStream ? { stream: true } : {})
       };
       if (jsonMode && (activeProvider === 'openai' || activeProvider === 'groq' || activeProvider === 'deepseek')) {
         payload.response_format = { type: 'json_object' };
@@ -298,10 +300,39 @@ async function callLLM({
         const errText = await res.text();
         throw new Error(`${activeProvider.toUpperCase()} API Error (${res.status}): ${errText}`);
       }
-      const data = await res.json();
-      content = data.choices?.[0]?.message?.content || '';
-      promptTokens = data.usage?.prompt_tokens || promptTokens;
-      completionTokens = data.usage?.completion_tokens || estimateTokens(content);
+      const ctype = res.headers.get('content-type') || '';
+      if (useStream && ctype.includes('text/event-stream') && res.body?.getReader) {
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines.pop() || '';
+          for (const rawLine of lines) {
+            const line = rawLine.trim();
+            if (!line.startsWith('data:')) continue;
+            const jsonStr = line.slice(5).trim();
+            if (!jsonStr || jsonStr === '[DONE]') continue;
+            try {
+              const chunk = JSON.parse(jsonStr);
+              const delta = chunk.choices?.[0]?.delta?.content || '';
+              if (delta) {
+                content += delta;
+                onTokenDelta(delta, { done: false });
+              }
+            } catch {}
+          }
+        }
+        completionTokens = estimateTokens(content);
+      } else {
+        const data = await res.json();
+        content = data.choices?.[0]?.message?.content || '';
+        promptTokens = data.usage?.prompt_tokens || promptTokens;
+        completionTokens = data.usage?.completion_tokens || estimateTokens(content);
+      }
     }
 
     const cost = calculateCost(activeProvider, promptTokens, completionTokens);

@@ -1441,6 +1441,20 @@ function connectRealTimeStream() {
         if (window.CompanyStore && chunk) {
           window.CompanyStore.setState({ streamingOutput: chunk });
         }
+        const ticker = document.getElementById('liveStreamTicker');
+        if (ticker && chunk) {
+          ticker.style.display = 'inline-flex';
+          const preview = String(chunk.delta || '').replace(/\s+/g, ' ').trim().slice(-80);
+          ticker.textContent = chunk.done
+            ? `⚡ ${chunk.agentName || 'Agent'}: ${preview}`
+            : `⚡ Streaming ${chunk.agentName || 'Agent'}: ${preview}`;
+          clearTimeout(window._streamTickerTimer);
+          if (chunk.done) {
+            window._streamTickerTimer = setTimeout(() => {
+              ticker.style.display = 'none';
+            }, 4500);
+          }
+        }
       } catch {}
     });
     es.onerror = () => {

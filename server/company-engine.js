@@ -99,6 +99,17 @@ class CompanyEngine {
     }
   }
 
+  async runInIsolatedSandbox(taskId, fn) {
+    const safeId = String(taskId || `task-${Date.now()}`).replace(/[^a-zA-Z0-9_-]/g, '_');
+    const sandboxDir = path.join(WORKSPACE_DIR, '.sandboxes', safeId);
+    await fs.promises.mkdir(sandboxDir, { recursive: true });
+    try {
+      return await fn(sandboxDir);
+    } finally {
+      fs.promises.rm(sandboxDir, { recursive: true, force: true }).catch(() => {});
+    }
+  }
+
   broadcastSSEEvent(eventName, payloadObj) {
     if (!this.sseClients || this.sseClients.size === 0) return;
     const frame = `event: ${eventName}\ndata: ${JSON.stringify(payloadObj)}\n\n`;

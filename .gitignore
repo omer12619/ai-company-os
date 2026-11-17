@@ -9,3 +9,4 @@ data/*.json
 workspace/sprint_*
 workspace/eval_fault_probe*
 workspace/broken_syntax*
+workspace/.sandboxes/

@@ -270,3 +270,18 @@ test('AGENTS.md constitution loads, Smart Model Arbitrage routes tiers, and Type
     await new Promise((resolve) => server.close(resolve));
   }
 });
+
+test('runInIsolatedSandbox creates per-task directory and cleans up on completion', async () => {
+  const fs = require('fs');
+  const path = require('path');
+  let capturedDir = '';
+  const val = await engine.runInIsolatedSandbox('unit-test-sbx', async (dir) => {
+    capturedDir = dir;
+    assert.equal(fs.existsSync(dir), true);
+    fs.writeFileSync(path.join(dir, 'probe.txt'), 'ok', 'utf8');
+    return 42;
+  });
+  assert.equal(val, 42);
+  await new Promise((r) => setTimeout(r, 40));
+  assert.equal(fs.existsSync(capturedDir), false);
+});
